@@ -10,10 +10,10 @@
     "cookie-parser": "*",
     "debug": "*",
     "express": "*",
-    "jade": "*",
     "morgan": "*",
-    "serve-favicon": "*",
     "fcm-push": "*",
-    "firebase-admin": "*"
+    "firebase-admin": "*",
+    "firebase": "*",
+    "firebase-queue": "*"
   }
 }
