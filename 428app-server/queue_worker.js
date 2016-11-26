@@ -4,8 +4,10 @@ admin.initializeApp({
   databaseURL: "https://app-abdf9.firebaseio.com"
 });
 
+
 var db = admin.database();
-var ref = db.ref("/queue");
+var dbName = "/real_db"
+var ref = db.ref(dbName + "/queue");
 var Queue = require('firebase-queue');
 
 var options = {
@@ -30,7 +32,7 @@ var queue = new Queue(ref, options, function(data, progress, resolve, reject) {
   }
 
   // Get poster's name and image
-  db.ref("/users/" + posterUid).once("value", function(posterSnapshot) {
+  db.ref(dbName + "/users/" + posterUid).once("value", function(posterSnapshot) {
   	if (posterSnapshot.val() == null) {
   		reject('Poster does not exist: ' + posterUid);
   		return;
@@ -43,7 +45,7 @@ var queue = new Queue(ref, options, function(data, progress, resolve, reject) {
   	var posterImage = posterSnapshot.val().profilePhoto == null ? "" : posterSnapshot.val().profilePhoto;
   	// Get recipient's user token if it is a connection type
   	if (type == "connection") {
-  		db.ref("/users/" + recipientUid).once("value", function(recipientSnapshot) {
+  		db.ref(dbName+ "/users/" + recipientUid).once("value", function(recipientSnapshot) {
   			if (recipientSnapshot.val() == null) {
   				reject('Recipient does not exist: ' + recipientUid);
   				return;
@@ -56,7 +58,7 @@ var queue = new Queue(ref, options, function(data, progress, resolve, reject) {
   			}
 
   			// Get recipient's settings to see if in app notifications are enabled
-  			db.ref("/userSettings/" + recipientUid + "/inAppNotifications").once("value", function(inAppSnapshot) {
+  			db.ref(dbName + "/userSettings/" + recipientUid + "/inAppNotifications").once("value", function(inAppSnapshot) {
   				var inApp = true
   				if (inAppSnapshot.val() != null && inAppSnapshot.val() == false) {
   					inApp = false
