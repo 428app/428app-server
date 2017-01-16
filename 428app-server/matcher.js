@@ -9,7 +9,7 @@ var db = admin.database();
 var dbName = "/real_db"
 
 
-// TEST Functions
+// TEST Functions that create dummy data
 
 function createDummyQuestion() {
 	var discipline = DISCIPLINES[parseInt(Math.random() * DISCIPLINES.length)];
@@ -25,7 +25,15 @@ function createDummyClassrooms(_disciplines, uid) {
 	return _classrooms;
 }
 
-// Dummy function that creates a classmate of random attributes in Firebase
+function clearClassrooms() {
+	db.ref(dbName + "/classrooms/").set(null);
+}
+
+function clearClassmates() {
+	db.ref(dbName + "/users/").set(null);	
+	db.ref(dbName + "/userSettings/").set(null);	
+}
+
 function createDummyClassmate() {
 	// Randomize certain attributes
 	var random_discipline = DISCIPLINES[parseInt(Math.random() * DISCIPLINES.length)];
@@ -67,35 +75,11 @@ function createDummyClassmate() {
 	});
 }
 
-// for (var i = 0; i < 1000; i++) {
-// 	createDummyQuestion();
-// }
-// randomQuestionOfDiscipline("Physics", function(question) {
-// 	console.log(question);
-// });
-
-// for (var i = 0; i < 1000; i++) {
-// 	createDummyClassmate();
-// }
-// generateClassrooms();
-
-
-function clearClassrooms() {
-	db.ref(dbName + "/classrooms/").set(null);
-}
-function clearClassmates() {
-	db.ref(dbName + "/users/").set(null);	
-	db.ref(dbName + "/userSettings/").set(null);	
-}
-// clearClassrooms();
-// clearClassmates();
-
 function checkForNoClassroomClassmates() {
 	db.ref(dbName + "/users").once("value", function(snap) {
 		snap.forEach(function(data) {
 			var user = data.val();
 			if (user["nextClassroom"] == undefined) {
-				// print out length of classrooms
 				if (user["classrooms"] != undefined) {
 					var len = user["classrooms"].length;
 					if (len != 28) {
@@ -107,15 +91,39 @@ function checkForNoClassroomClassmates() {
 		});
 	});
 }
-// checkForNoClassroomClassmates();
 
-// transferClassrooms();
-function checkForAllClassmatesHavingClassrooms() {
+function checkIfSomeClassmatesHaveNewClassroom() {
 	db.ref(dbName + "/users/").orderByChild("hasNewClassroom").equalTo(false).once("value", function(snap) {
 		console.log(snap.val());
 	})
 }
 
+// Step 1: Create dummy questions first
+// for (var i = 0; i < 1000; i++) {
+// 	createDummyQuestion();
+// }
+
+// Step 2: Clear classmates and classrooms
+// clearClassrooms();
+// clearClassmates();
+
+// Step 3: Create dummy classmates
+// for (var i = 0; i < 1000; i++) {
+// 	createDummyClassmate();
+// }
+
+// Step 4: Generate classrooms - assign classmates to classrooms
+// generateClassrooms();
+
+// Step 5: Verify that all users have a nextClassroom, 
+// and if they don't it's because they have already taken all classrooms
+// checkForNoClassroomClassmates();
+
+// Step 6: Transfers users' next classroom to their list of classrooms when the time is right
+// transferToNewClassroom();
+
+// Step 7: Check if some classmates really have their hasNewClassroom set to True
+// checkIfSomeClassmatesHaveNewClassroom()
 
 /**
  * Function used to write a question to the data store
@@ -263,7 +271,7 @@ function _nextDay428(inputTimezone) {
 }
 
 /**
- * Assigns classmates to a classroom in Firebase.
+ * Assigns classmates to a classroom in Firebase. Used in generateClassrooms.
  * @param  {[Array]} classmates      List of classmate JSON to be assigned
  * @param  {[String]} discipline     String of discipline or classroomTitle
  */
@@ -320,7 +328,8 @@ function assignClassroom(classmates, discipline) {
  * Assigns classmate to available classroom that has 
  * 1) timeCreated in the future, 
  * 2) discipline that classmate has not taken,
- * 3) Same timezone as classmate.
+ * 3) same timezone as classmate.
+ * Used in generateClassrooms.
  * @param {[JSON]} classmate JSON of classmate
  */
 function addToAvailableClassroom(classmate) {
@@ -360,9 +369,19 @@ function addToAvailableClassroom(classmate) {
 			}
 		});
 	});
-
 }
 
+/**
+ * KEY FUNCTION: Algorithm that generates classrooms for users
+ * Right now, the algorithm is very primitive and mainly matches 4 or more (most of the time 7) 
+ * classmates to one classroom. The classmates will be from the timezone and will receive 
+ * their new classroom exactly after a week (or less, though exactly one week most of the time). 
+ * Users will only be matched classrooms they have never taken before.
+ * TODO: 
+ * 1) If two users have been in a classroom before, should not match again
+ * 2) Facebook friends should not match with one another
+ * 3) Take into account firstReplied of users to make sure every classroom has at least one user that likes to start conversations
+ */
 function generateClassrooms() {
 	db.ref(dbName + "/users").once("value", function(usersSnap) {
 		
@@ -457,8 +476,7 @@ function generateClassrooms() {
 				if (prevLeft == currLeft) {
 					// Inspect each of these remaining users, and put them in classrooms of their available disciplines that is not yet created
 					while (classmatesLeft.length > 0) {
-						var cm = classmatesLeft.pop();
-						addToAvailableClassroom(cm);
+						addToAvailableClassroom(classmatesLeft.pop());
 					}
 				}
 			}
@@ -466,14 +484,14 @@ function generateClassrooms() {
 	});
 }
 
-
 /**
+ * KEY FUNCTION: Transfers users to their new classrooms when 4:28pm arrives.
  * To be run every :28 and :58 on system time.
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
  * 1) Add nextClassroom to classrooms and set nextClassroom to null, 
  * 2) Set hasNewClassroom to true, 
  */
-function transferClassrooms() {
+function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
 	var oneHour = 60 * 60 * 1000; // One hour leeway
 	db.ref(dbName + "/users")
