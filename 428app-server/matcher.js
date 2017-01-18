@@ -8,12 +8,11 @@ var DISCIPLINES = ["Performing arts", "Visual arts", "Geography", "History", "La
 var db = admin.database();
 var dbName = "/real_db"
 
-
 // TEST Functions that create dummy data
 
 function createDummyQuestion() {
 	var discipline = DISCIPLINES[parseInt(Math.random() * DISCIPLINES.length)];
-	writeQuestion(discipline, "", discipline + " Question" + Math.random().toString(36).substring(7), discipline + "Answer");
+	writeQuestion(discipline, "https://scontent-sit4-1.xx.fbcdn.net/v/t31.0-8/15039689_1271173046259920_4366784399934560581_o.jpg?oh=22f4ffd1a592e2d0b55bf1208ca9e1d2&oe=58D6797C", discipline + " Question" + Math.random().toString(36).substring(7), discipline + "Answer");
 }
 
 function createDummyClassrooms(_disciplines, uid) {
@@ -25,13 +24,11 @@ function createDummyClassrooms(_disciplines, uid) {
 	return _classrooms;
 }
 
-function clearClassrooms() {
+function clearDatabase() {
 	db.ref(dbName + "/classrooms/").set(null);
-}
-
-function clearClassmates() {
 	db.ref(dbName + "/users/").set(null);	
 	db.ref(dbName + "/userSettings/").set(null);	
+	db.ref(dbName + "/questions/").set(null);	
 }
 
 function createDummyClassmate() {
@@ -98,31 +95,33 @@ function checkIfSomeClassmatesHaveNewClassroom() {
 	})
 }
 
+// Step 0: Clear database
+// clearDatabase();
+
 // Step 1: Create dummy questions first
 // for (var i = 0; i < 1000; i++) {
 // 	createDummyQuestion();
 // }
 
-// Step 2: Clear classmates and classrooms
-// clearClassrooms();
-// clearClassmates();
-
-// Step 3: Create dummy classmates
+// Step 2: Create dummy classmates
 // for (var i = 0; i < 1000; i++) {
 // 	createDummyClassmate();
 // }
 
-// Step 4: Generate classrooms - assign classmates to classrooms
+// --> TEST HERE: Have to create a new user from the app before generating
+//  classrooms for him and dummy users
+
+// Step 3: Generate classrooms - assign classmates to classrooms
 // generateClassrooms();
 
-// Step 5: Verify that all users have a nextClassroom, 
+// Step 4: Verify that all users have a nextClassroom, 
 // and if they don't it's because they have already taken all classrooms
 // checkForNoClassroomClassmates();
 
-// Step 6: Transfers users' next classroom to their list of classrooms when the time is right
+// Step 5: Transfers users' next classroom to their list of classrooms when the time is right
 // transferToNewClassroom();
 
-// Step 7: Check if some classmates really have their hasNewClassroom set to True
+// Step 6: Check if some classmates really have their hasNewClassroom set to True
 // checkIfSomeClassmatesHaveNewClassroom()
 
 /**
@@ -373,6 +372,7 @@ function addToAvailableClassroom(classmate) {
 
 /**
  * KEY FUNCTION: Algorithm that generates classrooms for users
+ * TO BE RUN: Hourly at :00
  * Right now, the algorithm is very primitive and mainly matches 4 or more (most of the time 7) 
  * classmates to one classroom. The classmates will be from the timezone and will receive 
  * their new classroom exactly after a week (or less, though exactly one week most of the time). 
@@ -486,14 +486,14 @@ function generateClassrooms() {
 
 /**
  * KEY FUNCTION: Transfers users to their new classrooms when 4:28pm arrives.
- * To be run every :28 and :58 on system time.
+ * TO BE RUN: :28 and :58 each hour on system time.
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
  * 1) Add nextClassroom to classrooms and set nextClassroom to null, 
  * 2) Set hasNewClassroom to true, 
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var oneHour = 60 * 60 * 1000; // One hour leeway
+	var oneHour = 120 * 60 * 1000; // TODO: two hour leeway, change this to 5min
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
 	.startAt(currentTimestamp - oneHour)
@@ -501,14 +501,29 @@ function transferToNewClassroom() {
 		snap.forEach(function(data) {
 			var user = data.val();
 			var timeOfNextClassroom = user["timeOfNextClassroom"];
-			var nextClassroom = user["nextClassroom"];
-			if (nextClassroom != undefined && nextClassroom != null) { // Next classroom not yet assigned
+			var cid = user["nextClassroom"];
+			if (cid != undefined && cid != null) { // Next classroom not yet assigned
 				// Time to assign new classroom to user
 				var updates = {};
 				var uid = data.key;
-				updates["nextClassroom"] = null;
-				updates["hasNewClassroom"] = true;
-				db.ref(dbName + "/users/" + uid).update(updates);
+				// Grab the details of the other classroom
+				db.ref(dbName + "/classrooms/" + cid).once("value", function(classSnap) {
+					var classroomData = classSnap.val();
+					if (classroomData == null) {
+						return;
+					}
+					var classUpdates = {};
+					classUpdates["discipline"] = classroomData["title"];
+					classUpdates["questionNum"] = 1;
+					classUpdates["questionImage"] = classroomData["image"];
+					classUpdates["hasUpdates"] = true;
+					updates["classrooms/" + cid] = classUpdates;
+					// Set next classroom to null, and has new classrooms to true
+					updates["nextClassroom"] = null;
+					updates["hasNewClassroom"] = true;
+					db.ref(dbName + "/users/" + uid).update(updates);
+				});
+
 			}
 		});
 	});
