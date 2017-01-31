@@ -4,9 +4,68 @@ admin.initializeApp({
   databaseURL: "https://app-abdf9.firebaseio.com"
 });
 
-var DISCIPLINES = ["Performing arts", "Visual arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political sciences", "Sports", "Theology", "Biology", "Chemistry", "Earth and Space sciences", "Mathematics", "Physics", "Finance", "Agriculture", "Computer science", "Engineering", "Medicine", "Psychology", "Culture", "Life hacks", "Education", "Fashion", "Romance"];
+var DISCIPLINES = ["Performing arts", "Visual arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political sciences", "Sports", "Theology", "Biology", "Chemistry", "Earth and Space sciences", "Mathematics", "Physics", "Finance", "Agriculture", "Computer science", "Engineering", "Health", "Psychology", "Culture", "Life hacks", "Education", "Fashion", "Romance"];
 var db = admin.database();
 var dbName = "/real_db"
+
+// SIMULATOR functions for testing classrooms with some real logins
+simulateClassrooms();
+
+// Puts all the users in one classroom
+function simulateClassrooms() {
+
+	var timeCreated = Date.now();
+	var discipline = "Agriculture";
+
+	// Gets all users
+	db.ref(dbName + "/users").once("value", function(snap) {
+		var uids = [];
+		snap.forEach(function(data) {
+			uids.push(data.key);
+		});
+
+		var cid = db.ref(dbName + "/classrooms").push().key;
+
+		var memberHasRated = {};
+		for (var i = 0; i < uids.length; i++) {
+			memberHasRated[uids[i]] = 0;
+		}
+
+		db.ref(dbName + "/questions/" + discipline).once("value", function(snap) {
+			// Just pick the first question
+			var dict = snap.val();
+			var firstKey = Object.keys(dict)[0];
+			var question = dict[firstKey];
+
+			var questions = {};
+			questions[firstKey] = timeCreated;
+
+			// Create the classroom
+			db.ref(dbName + "/classrooms/" + cid).set({
+				title: discipline,
+				image: "https://scontent-sit4-1.xx.fbcdn.net/v/t31.0-8/15039689_1271173046259920_4366784399934560581_o.jpg?oh=22f4ffd1a592e2d0b55bf1208ca9e1d2&oe=58D6797C", // Image is image of question
+				timeCreated: timeCreated,
+				timezone: -5,
+				memberHasRated: memberHasRated,
+				questions: questions,
+				ratings: null, // No ratings yet
+				timeReplied: -1 // Never replied yet
+			}).then(function() {
+				// Add this classroom to all uids
+				var updates = {};
+				updates["/classrooms/" + cid + "/discipline"] = discipline;
+				updates["/classrooms/" + cid + "/questionNum"] = 1;
+				updates["/classrooms/" + cid + "/questionImage"] = question["image"];
+				updates["/classrooms/" + cid + "/hasUpdates"] = true;
+				updates["/timeOfNextClassroom"] = timeCreated;
+				for (uid in memberHasRated) {
+					db.ref(dbName + "/users/" + uid).update(updates);
+				}
+			});
+
+		});
+	});
+}
 
 // TEST Functions that create dummy data
 
@@ -493,7 +552,7 @@ function generateClassrooms() {
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var oneHour = 120 * 60 * 1000; // TODO: two hour leeway, change this to 5min
+	var oneHour = 1200 * 60 * 1000; // TODO: two hour leeway, change this to 5min
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
 	.startAt(currentTimestamp - oneHour)
