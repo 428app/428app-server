@@ -25,48 +25,31 @@ var queue = new Queue(ref, options, function(data, progress, resolve, reject) {
 	var posterImage = data.posterImage;
 	var cid = data.cid;
 	var recipientUid = data.recipientUid;
+	var pushToken = data.pushToken;
+	var pushCount = data.pushCount;
+	var inApp = data.inApp;
 	var title = data.title;
 	var type = data.type;
 
 	// Null checks for malformed task
-	if (body == null || posterUid == null || cid == null || recipientUid == null 
-		|| title == null || type == null || posterUid == "" || posterName == null) {
+	if (body == null || posterUid == null || cid == null || recipientUid == null || pushToken == null 
+		|| inApp == null || title == null || type == null || posterUid == "" || posterName == null) {
 		reject();
 		return;
 	}
 
-	// This does not increment badge count, and simply sends what is already there
-	
-	if (type == "inbox") {
-		db.ref(dbName+ "/users/" + recipientUid).once("value", function(recipientSnapshot) {
-			if (recipientSnapshot.val() == null) {
-				reject('Recipient does not exist: ' + recipientUid);
-				return;
-			}
-			var badgeCount = recipientSnapshot.val().badgeCount == null ? 0 : recipientSnapshot.val().badgeCount
-			var recipientToken = recipientSnapshot.val().pushToken
-			if (recipientToken == null) {
-				reject('No push token for recipient: ' + recipientUid);
-				return;
-			}
-
-			// Get recipient's settings to see if in app notifications are enabled
-			db.ref(dbName + "/userSettings/" + recipientUid + "/inAppNotifications").once("value", function(inAppSnapshot) {
-				var inApp = true
-				if (inAppSnapshot.val() != null && inAppSnapshot.val() == false) {
-					inApp = false
-				}
-				// Send notification, and resolve without callback
-				sendNotification(recipientToken, type, posterUid, cid, posterImage, posterName, title, body, badgeCount, inApp, function(err) {
-					if (err != null) {
-						reject(err)
-					} else {
-						resolve();
-					}
-				});
-			})
-		});
+	if (pushCount == null) {
+		pushCount = 0;
 	}
+
+	// Send notification immediately, and resolve without callback
+	sendNotification(pushToken, type, posterUid, cid, posterImage, posterName, title, body, pushCount, inApp, function(err) {
+		if (err != null) {
+			reject(err)
+		} else {
+			resolve();
+		}
+	});	
 });
 
 
@@ -86,12 +69,12 @@ var fcm = new FCM(serverkey);
  * @param  {String} posterName  Poster's name
  * @param  {String} title       Title of push notification. Either classroom title or "Inbox"
  * @param  {String} body        Body of push notification. Format: "posterName" + ": " + "message"
- * @param  {Int}    badgeCount  Badge count of recipient.
+ * @param  {Int}    pushCount  	Badge count of recipient.
  * @param  {Bool}   inApp       True if recipient's in-app notifications are enabled, false otherwise.
  * @param  {Func} 	completed 	Callback function that takes err as argument, null if there is no error
  * @return {None}             
  */
-function sendNotification(pushToken, type, posterUid, cid, posterImage, posterName, title, body, badgeCount, inApp, completed) {
+function sendNotification(pushToken, type, posterUid, cid, posterImage, posterName, title, body, pushCount, inApp, completed) {
 	var message = {  
 			to : pushToken,
 			priority: 'high',
@@ -106,7 +89,7 @@ function sendNotification(pushToken, type, posterUid, cid, posterImage, posterNa
 					title: title,
 					body:  posterName + ": " + body,
 					sound: 'default',
-					badge: badgeCount.toString()
+					badge: pushCount.toString()
 			}
 	};
 
