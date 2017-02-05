@@ -16,9 +16,9 @@ var options = {
 };
 
 var queue = new Queue(ref, options, function(data, progress, resolve, reject) {
-
+	
 	// Read and process task data
-	console.log(data);
+	// console.log(data);
 	var body = data.body;
 	var posterUid = data.posterUid;
 	var posterName = data.posterName;
@@ -55,7 +55,8 @@ var queue = new Queue(ref, options, function(data, progress, resolve, reject) {
 
 /** Firebase Cloud Messaging */
 var FCM = require('fcm-push');
-var serverkey = 'AIzaSyDliFBpwjZfoMaNuxkN-A8XD8wYPFQzqlo';  
+// var serverkey = 'AIzaSyDliFBpwjZfoMaNuxkN-A8XD8wYPFQzqlo';  
+var serverkey = 'AAAAVjHHAyI:APA91bGnwhQoTFf23UV9wITofs5EgRk40X6A3MZ7VI39GIsD8EJOqiwdzAwmZLWrzU0Gy3MON_9Lfw6TZmD9NxUcolQa8ryWZdUF4KW5VOF_7W9CSp5hqluQKxnTSfSnJnwVOWIAyt1-J_h9oiJIYq8ibngvBshKtQ';
 var fcm = new FCM(serverkey);
 
 /**
@@ -76,7 +77,7 @@ var fcm = new FCM(serverkey);
  */
 function sendNotification(pushToken, type, posterUid, cid, posterImage, posterName, title, body, pushCount, inApp, completed) {
 	var message = {  
-			to : pushToken,
+			to: pushToken,
 			priority: 'high',
 			data : {
 					'uid': posterUid,
@@ -93,13 +94,13 @@ function sendNotification(pushToken, type, posterUid, cid, posterImage, posterNa
 			}
 	};
 
-	fcm.send(message, function(err,response){  
+	fcm.send(message, function(err,response) {  
 			if (err) {
 				console.log(err);
-					completed(err);
+				completed(err);
 			} else {
-					console.log("Successfully sent with response :",response);
-					completed(null);
+				console.log("Successfully sent with response :", response);
+				completed(null);
 			}
 	});
 }
