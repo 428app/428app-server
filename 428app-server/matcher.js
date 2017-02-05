@@ -9,14 +9,17 @@ var db = admin.database();
 var dbName = "/real_db"
 
 // SIMULATOR functions for testing classrooms with some real logins
-simulateClassrooms();
 
-// Puts all the users in one classroom
+// simulateClassrooms();
+
+// Puts all the users in all classrooms - one classroom per discipline available
 function simulateClassrooms() {
 
 	var timeCreated = Date.now();
-	var discipline = "Agriculture";
+	var disciplines = ["Physics", "Biology", "Earth and Space sciences"]; // Type disciplines to look for
 
+	var discipline = "Earth and Space sciences"
+	console.log(discipline);
 	// Gets all users
 	db.ref(dbName + "/users").once("value", function(snap) {
 		var uids = [];
@@ -24,14 +27,13 @@ function simulateClassrooms() {
 			uids.push(data.key);
 		});
 
-		var cid = db.ref(dbName + "/classrooms").push().key;
-
 		var memberHasRated = {};
 		for (var i = 0; i < uids.length; i++) {
 			memberHasRated[uids[i]] = 0;
 		}
 
 		db.ref(dbName + "/questions/" + discipline).once("value", function(snap) {
+			
 			// Just pick the first question
 			var dict = snap.val();
 			var firstKey = Object.keys(dict)[0];
@@ -40,10 +42,12 @@ function simulateClassrooms() {
 			var questions = {};
 			questions[firstKey] = timeCreated;
 
+			var cid = db.ref(dbName + "/classrooms").push().key;
+
 			// Create the classroom
 			db.ref(dbName + "/classrooms/" + cid).set({
 				title: discipline,
-				image: "https://scontent-sit4-1.xx.fbcdn.net/v/t31.0-8/15039689_1271173046259920_4366784399934560581_o.jpg?oh=22f4ffd1a592e2d0b55bf1208ca9e1d2&oe=58D6797C", // Image is image of question
+				image: question["image"],
 				timeCreated: timeCreated,
 				timezone: -5,
 				memberHasRated: memberHasRated,
@@ -65,6 +69,7 @@ function simulateClassrooms() {
 
 		});
 	});
+
 }
 
 // TEST Functions that create dummy data
@@ -198,6 +203,24 @@ function writeQuestion(classroomTitle, image, question, answer) {
 	question: question,
 	answer: answer
   });
+}
+
+/**
+ * Writes questions from a tab-separated file and posts them to the Questions Firebase store.
+ * @param  {[String]} tsvFile Tab separated file (without header)
+ * @return None
+ */
+function writeQuestionsFromTSVFile(tsvFile) {
+	var fs = require('fs'); 
+	var parse = require('csv-parse');
+	fs.createReadStream(tsvFile)
+	    .pipe(parse({delimiter: '\t'}))
+	    .on('data', function(csvrow) {
+	        console.log(csvrow);
+	        writeQuestion(csvrow[0], csvrow[1], csvrow[2], csvrow[3]);
+	    })
+	    .on('end',function() {
+	    });
 }
 
 // Test physics question

@@ -6,6 +6,8 @@
     "start": "node ./bin/www"
   },
   "dependencies": {
+    "csv-parse": "*",
+    "async": "*",
     "body-parser": "*",
     "cookie-parser": "*",
     "debug": "*",
