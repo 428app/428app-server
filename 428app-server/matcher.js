@@ -13,8 +13,6 @@ var dbName = "/real_db"
 
 // simulateClassrooms();
 
-assignSuperlatives();
-
 // Puts all the users in all classrooms - one classroom per discipline available
 function simulateClassrooms() {
 
@@ -643,15 +641,15 @@ function assignSuperlatives() {
 			var chosenSuperlatives = SHUFFLED_SUPERLATIVES.slice(0, numSuperlatives);
 
 			// Grab list of uids
-			var uidsAndCount = classroom["memberHasRated"]; // TODO: To change to memberHasVoted on regeneration of classrooms
-			for (uid in uidsAndCount) {
-				uidsAndCount[uid] = 0;
+			var uidsAndVotedUids = classroom["memberHasVoted"];
+			for (uid in uidsAndVotedUids) {
+				uidsAndVotedUids[uid] = ""; // Have not voted for any uid yet so empty string
 			}
 			
 			var superlativesDict = {};
 
 			chosenSuperlatives.forEach(function(sup) {
-				superlativesDict[sup] = uidsAndCount;
+				superlativesDict[sup] = uidsAndVotedUids;
 			});
 
 			var classUpdates = {};
@@ -660,3 +658,5 @@ function assignSuperlatives() {
 		});
 	});
 }
+
+assignSuperlatives();
