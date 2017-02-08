@@ -5,12 +5,15 @@ admin.initializeApp({
 });
 
 var DISCIPLINES = ["Performing arts", "Visual arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political sciences", "Sports", "Theology", "Biology", "Chemistry", "Earth and Space sciences", "Mathematics", "Physics", "Finance", "Agriculture", "Computer science", "Engineering", "Health", "Psychology", "Culture", "Life hacks", "Education", "Fashion", "Romance"];
+var SUPERLATIVES = ["Most Awkward", "Most similar to Bieber", "IQ: 200", "Best Personality", "Most good looking", "Most funny", "Biggest Dreamer", "Most Flirt", "Loudest", "Most Quiet", "Most Artistic", "Most likely to be arrested", "Most dramatic", "Most money", "Party Animal", "Most Lovable"]
 var db = admin.database();
 var dbName = "/real_db"
 
 // SIMULATOR functions for testing classrooms with some real logins
 
 // simulateClassrooms();
+
+assignSuperlatives();
 
 // Puts all the users in all classrooms - one classroom per discipline available
 function simulateClassrooms() {
@@ -27,9 +30,9 @@ function simulateClassrooms() {
 			uids.push(data.key);
 		});
 
-		var memberHasRated = {};
+		var memberHasVoted = {};
 		for (var i = 0; i < uids.length; i++) {
-			memberHasRated[uids[i]] = 0;
+			memberHasVoted[uids[i]] = 0;
 		}
 
 		db.ref(dbName + "/questions/" + discipline).once("value", function(snap) {
@@ -50,9 +53,9 @@ function simulateClassrooms() {
 				image: question["image"],
 				timeCreated: timeCreated,
 				timezone: -5,
-				memberHasRated: memberHasRated,
+				memberHasVoted: memberHasVoted,
 				questions: questions,
-				ratings: null, // No ratings yet
+				superlatives: null, // No superlatives yet
 				timeReplied: -1 // Never replied yet
 			}).then(function() {
 				// Add this classroom to all uids
@@ -62,7 +65,7 @@ function simulateClassrooms() {
 				updates["/classrooms/" + cid + "/questionImage"] = question["image"];
 				updates["/classrooms/" + cid + "/hasUpdates"] = true;
 				updates["/timeOfNextClassroom"] = timeCreated;
-				for (uid in memberHasRated) {
+				for (uid in memberHasVoted) {
 					db.ref(dbName + "/users/" + uid).update(updates);
 				}
 			});
@@ -368,9 +371,9 @@ function assignClassroom(classmates, discipline) {
 		timeCreated = _addWeekToTimestamp(timeOfNextClassroom);
 	}
 
-	var memberHasRated = {};
+	var memberHasVoted = {};
 	for (var i = 0; i < classmates.length; i++) {
-		memberHasRated[classmates[i]["uid"]] = 0;
+		memberHasVoted[classmates[i]["uid"]] = 0;
 	}
 
 	// Pick a first question for this new classroom
@@ -389,16 +392,16 @@ function assignClassroom(classmates, discipline) {
 			image: question["image"], // Image is image of question
 			timeCreated: timeCreated,
 			timezone: timezone,
-			memberHasRated: memberHasRated,
+			memberHasVoted: memberHasVoted,
 			questions: questions,
-			ratings: null, // No ratings yet
+			superlatives: null, // No superlatives yet
 			timeReplied: -1 // Never replied yet
 		}).then(function() {
 			// Modify classmates' nextClassroom and dateOfLastClassroom
 			var updates = {};
 			updates["/nextClassroom"] = cid;
 			updates["/timeOfNextClassroom"] = timeCreated;
-			for (uid in memberHasRated) {
+			for (uid in memberHasVoted) {
 				db.ref(dbName + "/users/" + uid).update(updates);
 			}
 		});
@@ -439,7 +442,7 @@ function addToAvailableClassroom(classmate) {
 				var cid = data.key;
 				var uid = classmate["uid"];
 				var classUpdates = {};
-				classUpdates["/memberHasRated/" + uid] = 0;
+				classUpdates["/memberHasVoted/" + uid] = 0;
 				db.ref(dbName + "/classrooms/" + cid).update(classUpdates);
 
 				// Modify user
@@ -575,11 +578,11 @@ function generateClassrooms() {
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var oneHour = 1200 * 60 * 1000; // TODO: two hour leeway, change this to 5min
+	var marginOfTime = 5 * 60 * 1000; // 5min leeway
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
-	.startAt(currentTimestamp - oneHour)
-	.endAt(currentTimestamp + oneHour).once("value", function(snap) {
+	.startAt(currentTimestamp - marginOfTime)
+	.endAt(currentTimestamp + marginOfTime).once("value", function(snap) {
 		snap.forEach(function(data) {
 			var user = data.val();
 			var timeOfNextClassroom = user["timeOfNextClassroom"];
@@ -607,6 +610,53 @@ function transferToNewClassroom() {
 				});
 
 			}
+		});
+	});
+}
+
+/**
+ * KEY FUNCTION: Assigns superlatives to classrooms after 1 week.
+ * TO BE RUN: Hourly at :00
+ * If classroom's timeCreated is 1 week before current time, then do the following steps:
+ * Step 1) Randomly pick 4 superlatives from all superlatives
+ * Step 2) For each superlative: initiate all uids and number of votes to 0
+ * FOR TESTING: To assign superlatives to all classrooms, just comment out the filters startAt and endAt
+ */
+function assignSuperlatives() {
+	var currentTimestamp = Date.now();
+	var oneWeek = 7 * 24 * 60 * 60 * 1000;
+	var marginOfTime = 1 * 24 * 60 * 60 * 1000; // 1 day of margin
+	db.ref(dbName + "/classrooms")
+	.orderByChild("timeCreated") // If time created is more than a week from today's date, but less than one week + 
+	.startAt(currentTimestamp - oneWeek - marginOfTime)
+	.endAt(currentTimestamp - oneWeek + marginOfTime)
+	.once("value", function(snap) {
+		snap.forEach(function(data) {
+			var classroom = data.val();
+			if (classroom["superlatives"] != null) {
+				// Superlatives already assigned, return
+				return;
+			}
+			var cid = data.key;
+			var numSuperlatives = 4;
+			var SHUFFLED_SUPERLATIVES = _shuffleArray(SUPERLATIVES);
+			var chosenSuperlatives = SHUFFLED_SUPERLATIVES.slice(0, numSuperlatives);
+
+			// Grab list of uids
+			var uidsAndCount = classroom["memberHasRated"]; // TODO: To change to memberHasVoted on regeneration of classrooms
+			for (uid in uidsAndCount) {
+				uidsAndCount[uid] = 0;
+			}
+			
+			var superlativesDict = {};
+
+			chosenSuperlatives.forEach(function(sup) {
+				superlativesDict[sup] = uidsAndCount;
+			});
+
+			var classUpdates = {};
+			classUpdates["superlatives"] = superlativesDict;
+			db.ref(dbName + "/classrooms/" + cid).update(classUpdates);
 		});
 	});
 }
