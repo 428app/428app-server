@@ -5,12 +5,11 @@ admin.initializeApp({
 });
 
 var DISCIPLINES = ["Performing arts", "Visual arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political sciences", "Sports", "Theology", "Biology", "Chemistry", "Earth and Space sciences", "Mathematics", "Physics", "Finance", "Agriculture", "Computer science", "Engineering", "Health", "Psychology", "Culture", "Life hacks", "Education", "Fashion", "Romance"];
-var SUPERLATIVES = ["Most Awkward", "Most similar to Bieber", "IQ: 200", "Best Personality", "Most good looking", "Most funny", "Biggest Dreamer", "Most Flirt", "Loudest", "Most Quiet", "Most Artistic", "Most likely to be arrested", "Most dramatic", "Most money", "Party Animal", "Most Lovable"]
+var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Most likely to be arrested", "Most dramatic", "Most money", "Party Animal", "Most lovable"]
 var db = admin.database();
 var dbName = "/real_db"
 
 // SIMULATOR functions for testing classrooms with some real logins
-
 // simulateClassrooms();
 
 // Puts all the users in all classrooms - one classroom per discipline available
@@ -19,8 +18,8 @@ function simulateClassrooms() {
 	var timeCreated = Date.now();
 	var disciplines = ["Physics", "Biology", "Earth and Space sciences"]; // Type disciplines to look for
 
-	var discipline = "Earth and Space sciences"
-	console.log(discipline);
+	var discipline = "Physics"
+	
 	// Gets all users
 	db.ref(dbName + "/users").once("value", function(snap) {
 		var uids = [];
@@ -131,7 +130,7 @@ function createDummyClassmate() {
 		timeOfNextClassroom: random_timeOfNextClassroom,
 		classrooms: random_classrooms,
 		hasNewBadge: false,
-		hasNewClassroom: false,
+		hasNewClassroom: null,
 		pushToken: "1",
 		pushCount: 0
 	});
@@ -155,7 +154,7 @@ function checkForNoClassroomClassmates() {
 }
 
 function checkIfSomeClassmatesHaveNewClassroom() {
-	db.ref(dbName + "/users/").orderByChild("hasNewClassroom").equalTo(false).once("value", function(snap) {
+	db.ref(dbName + "/users/").orderByChild("hasNewClassroom").equalTo(null).once("value", function(snap) {
 		console.log(snap.val());
 	})
 }
@@ -165,7 +164,7 @@ function checkIfSomeClassmatesHaveNewClassroom() {
 
 // Step 1: Create dummy questions first
 // for (var i = 0; i < 1000; i++) {
-// 	createDummyQuestion();
+	// createDummyQuestion();
 // }
 
 // Step 2: Create dummy classmates
@@ -567,16 +566,19 @@ function generateClassrooms() {
 	});
 }
 
+
+// TODO: Have to send push notifications for these three functions below, for daily alert
+
 /**
  * KEY FUNCTION: Transfers users to their new classrooms when 4:28pm arrives.
  * TO BE RUN: :28 and :58 each hour on system time.
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
  * 1) Add nextClassroom to classrooms and set nextClassroom to null, 
- * 2) Set hasNewClassroom to true, 
+ * 2) Set hasNewClassroom to classroom title, 
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var marginOfTime = 5 * 60 * 1000; // 5min leeway
+	var marginOfTime = 1 * 60 * 1000; // 1min leeway
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
 	.startAt(currentTimestamp - marginOfTime)
@@ -603,13 +605,74 @@ function transferToNewClassroom() {
 					updates["classrooms/" + cid] = classUpdates;
 					// Set next classroom to null, and has new classrooms to true
 					updates["nextClassroom"] = null;
-					updates["hasNewClassroom"] = true;
+					updates["hasNewClassroom"] = classroomData["title"];
 					db.ref(dbName + "/users/" + uid).update(updates);
 				});
 
 			}
 		});
 	});
+}
+
+/**
+ * KEY FUNCTION: Assign new question to all classrooms.
+ * TO BE RUN: :28 and :58 each hour on system time.
+ * For all classrooms, if based on timezone it is 4:28pm: 
+ * 1) Grab a new question with a qid that is not in this classrooms' questions
+ * 2) Set classmates' hasUpdates to true, and questionNum and questionImage
+ * If run out of questions, then stop assigning. (Hope this does not happen!)
+ * FOR TESTING: Comment out the part about checking if it is time to give new question
+ */
+function assignNewQuestion() {
+	var serverTimezone = (-new Date().getTimezoneOffset()) / 60.0;
+	var serverMinute = new Date().getMinutes();
+
+	// Get all questions first
+	db.ref(dbName + "/questions").once("value", function(allQuestionsSnap) {
+		var questionsDict = allQuestionsSnap.val();
+		// Get classrooms
+		db.ref(dbName + "/classrooms").once("value", function(allClassesSnap) {
+			allClassesSnap.forEach(function(classData) {
+				var classroom = classData.val();
+				var cid = classData.key;
+				var classmateUids = Object.keys(classroom["memberHasVoted"]);
+				
+				// Check if it is time to give new question
+				var classTimezone = classroom["timezone"];
+				var hoursToAdd = timezone - serverTimezone; // Assume whole sum
+				var serverHour = new Date().getHours();
+				var classHour = (serverHour + hoursToAdd) % 24;
+				if (!(classHour == 16 && serverMinute == 28) && !(classHour == 15.5 && serverMinute == 58)) {
+					// Not time to send a new question yet, skip classroom
+					return;
+				}
+
+				// Get question with the correct discipline and not already asked in this classroom
+				var discipline = classroom["title"];
+				var qidsAsked = Object.keys(classroom["questions"]);
+				var questionsAvailable = questionsDict[discipline];
+				for (var qid in questionsAvailable) {
+					if (qidsAsked.indexOf(qid) >= 0) continue; // Question asked before, skip
+					// Assign this question
+					var questionData = questionsAvailable[qid];
+					var currentTimestamp = Date.now();
+					var questionNum = qidsAsked.length + 1;
+					var questionImage = questionData["image"];
+
+					db.ref(dbName + "/classrooms/" + cid + "/questions/" + qid).set(currentTimestamp).then(function() {
+						classmateUids.forEach(function(classmateUid) {
+							var classUpdates = {};
+							classUpdates["questionNum"] = questionNum;
+							classUpdates["questionImage"] = questionImage;
+							classUpdates["hasUpdates"] = true;
+							db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates);
+						});
+					});
+					return;
+				}
+			});
+		});
+	})
 }
 
 /**
@@ -626,8 +689,8 @@ function assignSuperlatives() {
 	var marginOfTime = 1 * 24 * 60 * 60 * 1000; // 1 day of margin
 	db.ref(dbName + "/classrooms")
 	.orderByChild("timeCreated") // If time created is more than a week from today's date, but less than one week + 
-	.startAt(currentTimestamp - oneWeek - marginOfTime)
-	.endAt(currentTimestamp - oneWeek + marginOfTime)
+	// .startAt(currentTimestamp - oneWeek - marginOfTime)
+	// .endAt(currentTimestamp - oneWeek + marginOfTime)
 	.once("value", function(snap) {
 		snap.forEach(function(data) {
 			var classroom = data.val();
@@ -658,5 +721,3 @@ function assignSuperlatives() {
 		});
 	});
 }
-
-assignSuperlatives();
