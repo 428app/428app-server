@@ -6,6 +6,6 @@ Check for mail here: vim /var/spool/mail/ec2-user
 
 1) Every :00 generate classroom matching
 2) Every :28 and :58 system time run transferToNewClassroom
-*3) Every :28 and :58 run assignNewQuestion
+3) Every :28 and :58 run assignNewQuestion
 4) Every :00 assign superlatives to groups
 

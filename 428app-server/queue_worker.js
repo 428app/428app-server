@@ -33,7 +33,7 @@ var queue = new Queue(ref, options, function(data, progress, resolve, reject) {
 
 	// Null checks for malformed task
 	if (body == null || posterUid == null || cid == null || recipientUid == null || pushToken == null 
-		|| inApp == null || title == null || type == null || posterUid == "" || posterName == null) {
+		|| inApp == null || title == null || type == null || posterUid == null || posterName == null) {
 		reject();
 		return;
 	}
@@ -76,6 +76,7 @@ var fcm = new FCM(serverkey);
  * @return {None}             
  */
 function sendNotification(pushToken, type, posterUid, cid, posterImage, posterName, title, body, pushCount, inApp, completed) {
+	var bodyText = posterName == "" ? body : posterName + ": " + body;
 	var message = {  
 			to: pushToken,
 			priority: 'high',
@@ -88,7 +89,7 @@ function sendNotification(pushToken, type, posterUid, cid, posterImage, posterNa
 			},
 			notification : {
 					title: title,
-					body:  posterName + ": " + body,
+					body:  bodyText,
 					sound: 'default',
 					badge: pushCount.toString()
 			}

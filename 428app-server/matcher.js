@@ -9,233 +9,6 @@ var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best p
 var db = admin.database();
 var dbName = "/real_db"
 
-// SIMULATOR functions for testing classrooms with some real logins
-// simulateClassrooms();
-
-// Puts all the users in all classrooms - one classroom per discipline available
-function simulateClassrooms() {
-
-	var timeCreated = Date.now();
-	var disciplines = ["Physics", "Biology", "Earth and Space sciences"]; // Type disciplines to look for
-
-	var discipline = "Physics"
-	
-	// Gets all users
-	db.ref(dbName + "/users").once("value", function(snap) {
-		var uids = [];
-		snap.forEach(function(data) {
-			uids.push(data.key);
-		});
-
-		var memberHasVoted = {};
-		for (var i = 0; i < uids.length; i++) {
-			memberHasVoted[uids[i]] = 0;
-		}
-
-		db.ref(dbName + "/questions/" + discipline).once("value", function(snap) {
-			
-			// Just pick the first question
-			var dict = snap.val();
-			var firstKey = Object.keys(dict)[0];
-			var question = dict[firstKey];
-
-			var questions = {};
-			questions[firstKey] = timeCreated;
-
-			var cid = db.ref(dbName + "/classrooms").push().key;
-
-			// Create the classroom
-			db.ref(dbName + "/classrooms/" + cid).set({
-				title: discipline,
-				image: question["image"],
-				timeCreated: timeCreated,
-				timezone: -5,
-				memberHasVoted: memberHasVoted,
-				questions: questions,
-				superlatives: null, // No superlatives yet
-				timeReplied: -1 // Never replied yet
-			}).then(function() {
-				// Add this classroom to all uids
-				var updates = {};
-				updates["/classrooms/" + cid + "/discipline"] = discipline;
-				updates["/classrooms/" + cid + "/questionNum"] = 1;
-				updates["/classrooms/" + cid + "/questionImage"] = question["image"];
-				updates["/classrooms/" + cid + "/hasUpdates"] = true;
-				updates["/timeOfNextClassroom"] = timeCreated;
-				for (uid in memberHasVoted) {
-					db.ref(dbName + "/users/" + uid).update(updates);
-				}
-			});
-
-		});
-	});
-
-}
-
-// TEST Functions that create dummy data
-
-function createDummyQuestion() {
-	var discipline = DISCIPLINES[parseInt(Math.random() * DISCIPLINES.length)];
-	writeQuestion(discipline, "https://scontent-sit4-1.xx.fbcdn.net/v/t31.0-8/15039689_1271173046259920_4366784399934560581_o.jpg?oh=22f4ffd1a592e2d0b55bf1208ca9e1d2&oe=58D6797C", discipline + " Question" + Math.random().toString(36).substring(7), discipline + "Answer");
-}
-
-function createDummyClassrooms(_disciplines, uid) {
-	var _classrooms = [];
-	for (var i = 0; i < _disciplines.length; i++) {
-		var d = _disciplines[i];
-		_classrooms.push({"discipline": d, "questionNum": 2, "questionImage": "https://scontent-sit4-1.xx.fbcdn.net/v/t31.0-8/15039689_1271173046259920_4366784399934560581_o.jpg?oh=22f4ffd1a592e2d0b55bf1208ca9e1d2&oe=58D6797C", "hasUpdates": false})
-	}
-	return _classrooms;
-}
-
-function clearDatabase() {
-	db.ref(dbName + "/classrooms/").set(null);
-	db.ref(dbName + "/users/").set(null);	
-	db.ref(dbName + "/userSettings/").set(null);	
-	db.ref(dbName + "/questions/").set(null);	
-}
-
-function createDummyClassmate() {
-	// Randomize certain attributes
-	var random_discipline = DISCIPLINES[parseInt(Math.random() * DISCIPLINES.length)];
-	var random_timezone = parseInt(Math.random() * 11);
-	var random_nextClassroom = Math.random() > 0.5 ? "1" : null;
-	// Randomize from a few dates
-	
-	var times = [null, 1483720080000, 1483806480000, 1483892880000]; // UNIX times of 4:28pm at GMT of dates: 01/06, 01/07, 01/08
-
-	var random_index = parseInt(Math.random() * times.length);
-	var random_timeOfNextClassroom = times[random_index];
-
-	var d1 = ["Physics", "Chemistry", "Geography", "History", "Languages"];
-	var d2 = ["Physics"];
-	var d3 = DISCIPLINES;
-	var _classrooms = [null, createDummyClassrooms(d1), createDummyClassrooms(d2), createDummyClassrooms(d3)];
-	var random_classrooms = _classrooms[random_index];
-
-	var uid = db.ref(dbName + "/users").push().key;
-	db.ref(dbName + "/users/" + uid).set({
-		fbid: "1",
-		name: "Dummy",
-		birthday: "06/11/1991",
-		lastSeen: 0,
-		location: "42.3601, 71.0942",
-		discipline: random_discipline,
-		school: "Harvard",
-		organization: "428",
-		profilePhoto: "https://scontent-sit4-1.xx.fbcdn.net/v/t1.0-9/12360259_1036119596431934_7410932159803664054_n.jpg?oh=84251aca7d9dcc8e428a9ee58c420f57&oe=58E36C07",
-		tagline: "I'm a dummy of 428.",
-		timezone: random_timezone,
-		nextClassroom: null,
-		timeOfNextClassroom: random_timeOfNextClassroom,
-		classrooms: random_classrooms,
-		hasNewBadge: false,
-		hasNewClassroom: null,
-		pushToken: "1",
-		pushCount: 0
-	});
-}
-
-function checkForNoClassroomClassmates() {
-	db.ref(dbName + "/users").once("value", function(snap) {
-		snap.forEach(function(data) {
-			var user = data.val();
-			if (user["nextClassroom"] == undefined) {
-				if (user["classrooms"] != undefined) {
-					var len = user["classrooms"].length;
-					if (len != 28) {
-						console.log(user["timeOfNextClassroom"]);
-					}
-				}
-				
-			}
-		});
-	});
-}
-
-function checkIfSomeClassmatesHaveNewClassroom() {
-	db.ref(dbName + "/users/").orderByChild("hasNewClassroom").equalTo(null).once("value", function(snap) {
-		console.log(snap.val());
-	})
-}
-
-// Step 0: Clear database
-// clearDatabase();
-
-// Step 1: Create dummy questions first
-// for (var i = 0; i < 1000; i++) {
-	// createDummyQuestion();
-// }
-
-// Step 2: Create dummy classmates
-// for (var i = 0; i < 1000; i++) {
-// 	createDummyClassmate();
-// }
-
-// --> TEST HERE: Have to create a new user from the app before generating
-//  classrooms for him and dummy users
-
-// Step 3: Generate classrooms - assign classmates to classrooms
-// generateClassrooms();
-
-// Step 4: Verify that all users have a nextClassroom, 
-// and if they don't it's because they have already taken all classrooms
-// checkForNoClassroomClassmates();
-
-// Step 5: Transfers users' next classroom to their list of classrooms when the time is right
-// transferToNewClassroom();
-
-// Step 6: Check if some classmates really have their hasNewClassroom set to True
-// checkIfSomeClassmatesHaveNewClassroom()
-
-/**
- * Function used to write a question to the data store
- * @param  {[String]} classroomTitle Title of the classroom, which is the discipline
- * @param  {[String]} image          Image URL string of the question
- * @param  {[String]} question       Multiline question separated with \n if necessary
- * @param  {[String]} answer         Multiline answer separated with \n if necessary
- * @return {None}                
- */
-function writeQuestion(classroomTitle, image, question, answer) {
-	var qid = db.ref(dbName + "/questions/" + classroomTitle).push().key;
-  db.ref(dbName + "/questions/" + classroomTitle + "/" + qid).set({
-	image: image,
-	question: question,
-	answer: answer
-  });
-}
-
-/**
- * Writes questions from a tab-separated file and posts them to the Questions Firebase store.
- * @param  {[String]} tsvFile Tab separated file (without header)
- * @return None
- */
-function writeQuestionsFromTSVFile(tsvFile) {
-	var fs = require('fs'); 
-	var parse = require('csv-parse');
-	fs.createReadStream(tsvFile)
-	    .pipe(parse({delimiter: '\t'}))
-	    .on('data', function(csvrow) {
-	        console.log(csvrow);
-	        writeQuestion(csvrow[0], csvrow[1], csvrow[2], csvrow[3]);
-	    })
-	    .on('end',function() {
-	    });
-}
-
-// Test physics question
-// writeQuestion(
-// 	"Physics", 
-// 	"https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcT7yQPn_k7LlZGtO303qG5jgs0evO3pKOxu4yd47Hoi_uxcH8gD", 
-// 	"What happens when sperm travel to the speed of light?", 
-// 	"Our thought experiment does disprove one theory of relativity, and that is Galilean relativity. Contrary to popular belief, it was Galileo and not Einstein who invented the theory of relativity. Galileo proposed that it was relative velocities that mattered, and not velocities measured relative to the Earth, as Aristotle had previously suggested.\n\n" + 
-// 	"The average speed of ejaculation has been measured to be approximately 45 km/hr (just below the allowable speed limit in most suburban areas). This is the average speed of the ejected semen relative to the ejaculatory penis, and can be increased by training the Kegel muscles (by pretending to withhold your urine). Anyway, according to Galilean relativity, if one is to ejaculate whilst thrusting inwards at the speed of light, then the relative speed of their ejaculatory semen will be equal to the sum of the two speeds, namely the speed of light plus 45 km/hr. In other words, Galilean relativity says that the semen will be travelling faster than the speed of light. Einstein’s special theory of relativity showed this to be impossible.\n\n" +
-// 	"By assuming that the speed of light is the same in all inertial reference frames, Einstein showed the speed of light to be the cosmic speed limit. Actually, only massless particles can reach this limit, because an infinite amount of energy is needed to accelerate a massive object (and a penis is a massive object) up to the speed of light. It is possible to persist with the calculations at the speed of light, but this invariably leads to paradoxes, such as a penis having no apparent length, and therefore semen travelling through a penis with no apparent length. According to the semen, time stops, and space contracts down to two dimensions. Obviously, it is more realistic to consider the scenario of ejaculation at speeds arbitrarily close to the speed of light.\n\n" + 
-// 	"At such speeds, the relativistic velocity addition formula applies. Suppose your boyfriend has been training his Kegel muscles and he can achieve a speed of ejaculation of 2% the speed of light. Then, if he is to ejaculate while thrusting inwards at 99% the speed of light, his semen will be travelling not at 101% the speed of light as common sense would suggest, but rather at 99.04% the speed of light. This relativistic semen will then be decelerated to about 94.2% the speed of light as it escapes the gravitational pull of the penis.\n\n" + 
-// 	"An average ejaculation produces approximately two teaspoons of semen (this amount decreases with age, and increases with time since last ejaculation). Anyway, two teaspoons of semen travelling at 94.2% the speed of light will create enormous air resistance, which will heat up the semen in the same fashion as a spaceship re-entering the Earth's atmosphere. The semen will burst into flames almost instantaneously, creating deafening sonic booms in its wake.\n\n" +
-// 	"Meanwhile, two teaspoons of flaming semen will generate enormous impact forces, sufficient to rip straight through the structural integrity of an extra-strength Durex condom. But you will have much greater concerns than an unwanted pregnancy. The relativistic flaming semen will pierce a small hole straight through your lower torso, just like a speeding bullet, only incinerating the surrounding tissue as it passes through. Relativistic ejaculation brings true meaning to the question, \"Is that your gun in your pocket, or are you just happy to see me?\" Well it's not a gun baby… it's a rocket launcher!\n\n"
-// 	)
-
 /**
  * Checks if a user has already been in a classroom of a certain discipline, or if user is that discipline.
  * Used to ensure users do not get assigned the same classroom previously assigned.
@@ -295,6 +68,7 @@ function _userHasAllDisciplines(user) {
 
 /**
  * Returns a random question from the specified discipline, to be asked in classrooms.
+ * Used in choosing the first question of the classroom.
  * @param  {[type]} discipline 		String of discipline
  * @param  {[Function]} completed   Callback function that takes in Question JSON
  */
@@ -452,6 +226,10 @@ function addToAvailableClassroom(classmate) {
 	});
 }
 
+/***************************************************************************************************
+Below are they key functions that are run on cron jobs on the server.
+***************************************************************************************************/
+
 /**
  * KEY FUNCTION: Algorithm that generates classrooms for users
  * TO BE RUN: Hourly at :00
@@ -566,8 +344,42 @@ function generateClassrooms() {
 	});
 }
 
-
-// TODO: Have to send push notifications for these three functions below, for daily alert
+// NOTE: Daily alert is notifying new classroom and new question
+// This function logs a task to the queue for queue_worker to send out push notification
+function _sendPushNotification(posterImage, recipientUid, title, body) {
+	// First figure if this user has Daily Alert settings enabled
+	db.ref(dbName + "/userSettings/" + recipientUid).once("value", function(settingsSnap) {
+		var settings = settingsSnap.val();
+		if (settings == null || settings["dailyAlert"] == null || settings["dailyAlert"] == false) {
+			return;
+		}
+		var inApp = settings["inAppNotifications"];
+		// Grab this user's push token and push count
+		db.ref(dbName + "/users/" + recipientUid).once("value", function(userSnap) {
+			var user = userSnap.val();
+			if (user == null || user["pushToken"] == null) {
+				return;
+			}
+			var pushToken = user["pushToken"];
+			var pushCount = user["pushCount"];
+			// Log this task to the queue for queue_worker to send out notification
+			var tid = db.ref(dbName + "/queue/tasks").push().key;	
+			db.ref(dbName + "/queue/tasks/" + tid).set({
+				type: "alert",
+				posterUid: "",
+				posterName: "",
+				posterImage: posterImage,
+				recipientUid: recipientUid,
+				pushToken: pushToken,
+				pushCount: pushCount, // Don't bother incrementing push count for daily alerts	
+				inApp: inApp,
+				cid: "",
+				title: title,
+				body: body
+			});
+		});
+	});
+}
 
 /**
  * KEY FUNCTION: Transfers users to their new classrooms when 4:28pm arrives.
@@ -598,7 +410,8 @@ function transferToNewClassroom() {
 						return;
 					}
 					var classUpdates = {};
-					classUpdates["discipline"] = classroomData["title"];
+					var discipline = classroomData["title"];
+					classUpdates["discipline"] = discipline;
 					classUpdates["questionNum"] = 1;
 					classUpdates["questionImage"] = classroomData["image"];
 					classUpdates["hasUpdates"] = true;
@@ -606,7 +419,9 @@ function transferToNewClassroom() {
 					// Set next classroom to null, and has new classrooms to true
 					updates["nextClassroom"] = null;
 					updates["hasNewClassroom"] = classroomData["title"];
-					db.ref(dbName + "/users/" + uid).update(updates);
+					db.ref(dbName + "/users/" + uid).update(updates).then(function() {
+						_sendPushNotification("", uid, "NEW CLASSROOM", "It's time to love " + discipline);
+					});
 				});
 
 			}
@@ -639,7 +454,7 @@ function assignNewQuestion() {
 				
 				// Check if it is time to give new question
 				var classTimezone = classroom["timezone"];
-				var hoursToAdd = timezone - serverTimezone; // Assume whole sum
+				var hoursToAdd = classTimezone - serverTimezone; // Assume whole sum
 				var serverHour = new Date().getHours();
 				var classHour = (serverHour + hoursToAdd) % 24;
 				if (!(classHour == 16 && serverMinute == 28) && !(classHour == 15.5 && serverMinute == 58)) {
@@ -665,7 +480,10 @@ function assignNewQuestion() {
 							classUpdates["questionNum"] = questionNum;
 							classUpdates["questionImage"] = questionImage;
 							classUpdates["hasUpdates"] = true;
-							db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates);
+							db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates).then(function() {
+								// Send push notification to this user if needed
+								_sendPushNotification(questionImage, classmateUid, "NEW: " + discipline + " question", "You know you want to open this.");
+							});
 						});
 					});
 					return;
@@ -689,8 +507,8 @@ function assignSuperlatives() {
 	var marginOfTime = 1 * 24 * 60 * 60 * 1000; // 1 day of margin
 	db.ref(dbName + "/classrooms")
 	.orderByChild("timeCreated") // If time created is more than a week from today's date, but less than one week + 
-	// .startAt(currentTimestamp - oneWeek - marginOfTime)
-	// .endAt(currentTimestamp - oneWeek + marginOfTime)
+	.startAt(currentTimestamp - oneWeek - marginOfTime)
+	.endAt(currentTimestamp - oneWeek + marginOfTime)
 	.once("value", function(snap) {
 		snap.forEach(function(data) {
 			var classroom = data.val();
