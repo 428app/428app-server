@@ -52,7 +52,8 @@ function simulateClassrooms() {
 				memberHasVoted: memberHasVoted,
 				questions: questions,
 				superlatives: null, // No superlatives yet
-				timeReplied: -1 // Never replied yet
+				timeReplied: -1, // Never replied yet,
+				didYouKnow: null // No did you know as no superlatives either
 			}).then(function() {
 				// Add this classroom to all uids
 				var updates = {};

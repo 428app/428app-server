@@ -9,6 +9,17 @@ var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best p
 var db = admin.database();
 var dbName = "/real_db"
 
+// writeQuestion("Physics", "https://scontent.fzty2-1.fna.fbcdn.net/v/t31.0-8/15039689_1271173046259920_4366784399934560581_o.jpg?oh=d9fb327a94d33f79ebc6be5a7947ddca&oe=58FE067C", 
+	// "What is Physics? What does it mean?", "https://www.youtube.com/embed/HeGPn5zxegY", true)
+// Assign question to classroom
+// assignQuestionToClassroom("-KcukNTVkKBFfjBOJZYo", "-KcfwGyXapRkdS8LpAKu")
+
+
+// Test function
+function assignQuestionToClassroom(qid, cid) {
+	db.ref(dbName + "/classrooms/" + cid + "/questions/" + qid).set(Date.now());
+}
+
 function createDummyQuestion() {
 	var discipline = DISCIPLINES[parseInt(Math.random() * DISCIPLINES.length)];
 	writeQuestion(discipline, "https://scontent-sit4-1.xx.fbcdn.net/v/t31.0-8/15039689_1271173046259920_4366784399934560581_o.jpg?oh=22f4ffd1a592e2d0b55bf1208ca9e1d2&oe=58D6797C", discipline + " Question" + Math.random().toString(36).substring(7), discipline + "Answer");
@@ -25,7 +36,7 @@ function createDummyQuestion() {
  */
 function writeQuestion(classroomTitle, image, question, answer, isVideoAnswer) {
 	var qid = db.ref(dbName + "/questions/" + classroomTitle).push().key;
-  db.ref(dbName + "/questions/" + classroomTitle + "/" + qid).set({
+	db.ref(dbName + "/questions/" + classroomTitle + "/" + qid).set({
 		image: image,
 		question: question,
 		answer: answer,
@@ -68,4 +79,12 @@ function writeQuestionsFromTSVFile(tsvFile) {
 	    });
 }
 
-writeQuestionsFromTSVFile("test.tsv")
+function writeDidYouKnow(classroomTitle, videoLink) {
+	var did = db.ref(dbName + "/didyouknows/" + classroomTitle).push().key;
+	db.ref(dbName + "/didyouknows/" + classroomTitle + "/" + did).set(videoLink);
+}
+
+writeDidYouKnow("Physics", "https://www.youtube.com/embed/HeGPn5zxegY")
+writeDidYouKnow("Biology", "https://www.youtube.com/embed/HeGPn5zxegY")
+writeDidYouKnow("Earth and Space sciences", "https://www.youtube.com/embed/HeGPn5zxegY")
+

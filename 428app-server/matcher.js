@@ -89,6 +89,33 @@ function randomQuestionOfDiscipline(discipline, completed) {
 				var data = values[key];
 				data["qid"] = key;
 				completed(data);
+				return;
+			}
+			i++;
+		}
+	});
+}
+
+function randomDidYouKnowOfDiscipline(discipline, completed) {
+	var didyouknow_ref = db.ref(dbName + "/didyouknows");
+	didyouknow_ref.orderByKey().equalTo(discipline).once("value", function(snapshot) {
+		var snap = snapshot.child(discipline);
+		var n = snap.numChildren();
+		if (n == 0) {
+			completed(null);
+			return;
+		}
+		var random_index = parseInt(Math.random() * n);
+		var i = 0;
+		var values = snap.val();
+		for (key in values) {
+			if (i == random_index) {
+				var videoUrl = values[key];
+				var videoDict = {};
+				videoDict["did"] = key;
+				videoDict["videoUrl"] = videoUrl;
+				completed(videoDict);
+				return;
 			}
 			i++;
 		}
@@ -150,31 +177,38 @@ function assignClassroom(classmates, discipline) {
 	// Pick a first question for this new classroom
 	randomQuestionOfDiscipline(discipline, function(question) {
 		if (question == null) {
-			console.log("Critical error in assigning classroom for discipline: " + discipline);
+			console.log("Critical error in assigning question for classroom of discipline: " + discipline);
 			return;
 		}
-
-		var questions = {};
-		questions[question["qid"]] = timeCreated; // Date of time created - note that this is not 4:28pm
-
-		// Create the classroom
-		db.ref(dbName + "/classrooms/" + cid).set({
-			title: discipline,
-			image: question["image"], // Image is image of question
-			timeCreated: timeCreated,
-			timezone: timezone,
-			memberHasVoted: memberHasVoted,
-			questions: questions,
-			superlatives: null, // No superlatives yet
-			timeReplied: -1 // Never replied yet
-		}).then(function() {
-			// Modify classmates' nextClassroom and dateOfLastClassroom
-			var updates = {};
-			updates["/nextClassroom"] = cid;
-			updates["/timeOfNextClassroom"] = timeCreated;
-			for (uid in memberHasVoted) {
-				db.ref(dbName + "/users/" + uid).update(updates);
+		randomDidYouKnowOfDiscipline("Physics", function(didyouknow) {
+			if (didyouknow == null) {
+				console.log("Critical error in assigning didyouknow for classroom of discipline: " + discipline);
+				return;
 			}
+			
+			var questions = {};
+			questions[question["qid"]] = timeCreated; // Date of time created - note that this is not 4:28pm
+
+			// Create the classroom
+			db.ref(dbName + "/classrooms/" + cid).set({
+				title: discipline,
+				image: question["image"], // Image is image of question
+				timeCreated: timeCreated,
+				timezone: timezone,
+				memberHasVoted: memberHasVoted,
+				questions: questions,
+				superlatives: null, // No superlatives yet
+				timeReplied: -1, // Never replied yet
+				didYouKnow: didyouknow["did"]
+			}).then(function() {
+				// Modify classmates' nextClassroom and dateOfLastClassroom
+				var updates = {};
+				updates["/nextClassroom"] = cid;
+				updates["/timeOfNextClassroom"] = timeCreated;
+				for (uid in memberHasVoted) {
+					db.ref(dbName + "/users/" + uid).update(updates);
+				}
+			});
 		});
 	})
 }
