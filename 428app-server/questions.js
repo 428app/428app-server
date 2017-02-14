@@ -79,12 +79,15 @@ function writeQuestionsFromTSVFile(tsvFile) {
 	    });
 }
 
-function writeDidYouKnow(classroomTitle, videoLink) {
+function writeDidYouKnow(classroomTitle, videoLink, shareLink) {
 	var did = db.ref(dbName + "/didyouknows/" + classroomTitle).push().key;
-	db.ref(dbName + "/didyouknows/" + classroomTitle + "/" + did).set(videoLink);
+	db.ref(dbName + "/didyouknows/" + classroomTitle + "/" + did).set({
+		videoLink: videoLink,
+		shareLink: shareLink
+	});
 }
 
-writeDidYouKnow("Physics", "https://www.youtube.com/embed/HeGPn5zxegY")
-writeDidYouKnow("Biology", "https://www.youtube.com/embed/HeGPn5zxegY")
-writeDidYouKnow("Earth and Space sciences", "https://www.youtube.com/embed/HeGPn5zxegY")
+writeDidYouKnow("Physics", "https://www.youtube.com/embed/HeGPn5zxegY", "http://www.428pm.com")
+writeDidYouKnow("Biology", "https://www.youtube.com/embed/HeGPn5zxegY", "http://www.428pm.com")
+writeDidYouKnow("Earth and Space sciences", "https://www.youtube.com/embed/HeGPn5zxegY", "http://www.428pm.com")
 

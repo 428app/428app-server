@@ -110,11 +110,7 @@ function randomDidYouKnowOfDiscipline(discipline, completed) {
 		var values = snap.val();
 		for (key in values) {
 			if (i == random_index) {
-				var videoUrl = values[key];
-				var videoDict = {};
-				videoDict["did"] = key;
-				videoDict["videoUrl"] = videoUrl;
-				completed(videoDict);
+				completed(key);
 				return;
 			}
 			i++;
@@ -180,8 +176,8 @@ function assignClassroom(classmates, discipline) {
 			console.log("Critical error in assigning question for classroom of discipline: " + discipline);
 			return;
 		}
-		randomDidYouKnowOfDiscipline("Physics", function(didyouknow) {
-			if (didyouknow == null) {
+		randomDidYouKnowOfDiscipline("Physics", function(did) {
+			if (did == null) {
 				console.log("Critical error in assigning didyouknow for classroom of discipline: " + discipline);
 				return;
 			}
@@ -199,7 +195,7 @@ function assignClassroom(classmates, discipline) {
 				questions: questions,
 				superlatives: null, // No superlatives yet
 				timeReplied: -1, // Never replied yet
-				didYouKnow: didyouknow["did"]
+				didYouKnow: did
 			}).then(function() {
 				// Modify classmates' nextClassroom and dateOfLastClassroom
 				var updates = {};
