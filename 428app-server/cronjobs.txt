@@ -5,14 +5,14 @@ Cron jobs:
 Check for mail here: vim /var/spool/mail/ec2-user
 
 1) Every :00 generateClassrooms
-0 * * * * //home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-servermatcher-generateClassrooms.js
+0 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-generateClassrooms.js
 
 2) Every :28 and :58 system time run transferToNewClassroom
-28,58 * * * * //home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-servermatcher-transferToNewClassroom.js
+28,58 * * * * //home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-transferToNewClassroom.js
 
 3) Every :28 and :58 run assignNewQuestion
-28,58 * * * * //home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-servermatcher-assignNewQuestion.js
+28,58 * * * * //home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-assignNewQuestion.js
 
 4) Every :00 assignSuperlatives to groups
-0 * * * * //home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-servermatcher-assignSuperlatives.js
+0 * * * * //home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-assignSuperlatives.js
 

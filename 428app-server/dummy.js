@@ -9,6 +9,7 @@ var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best p
 var db = admin.database();
 var dbName = "/real_db"
 
+simulateClassrooms();
 /**
  * TEST FUNCTION
  * Puts all the users in all classrooms - one classroom per discipline available
@@ -17,7 +18,7 @@ function simulateClassrooms() {
 
 	var timeCreated = Date.now();
 
-	var discipline = "Physics" // Match all users to Physics classroom
+	var discipline = "Biology" // Match all users to Physics classroom
 	// Gets all users
 	db.ref(dbName + "/users").once("value", function(snap) {
 		var uids = [];
