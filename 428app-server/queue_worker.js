@@ -94,7 +94,7 @@ function sendNotification(pushToken, type, posterUid, cid, posterImage, posterNa
 					badge: pushCount.toString()
 			}
 	};
-
+	
 	fcm.send(message, function(err,response) {  
 			if (err) {
 				console.log(err);
@@ -105,3 +105,4 @@ function sendNotification(pushToken, type, posterUid, cid, posterImage, posterNa
 			}
 	});
 }
+

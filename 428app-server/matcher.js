@@ -194,7 +194,6 @@ function assignClassroom(classmates, discipline) {
 				memberHasVoted: memberHasVoted,
 				questions: questions,
 				superlatives: null, // No superlatives yet
-				timeReplied: -1, // Never replied yet
 				didYouKnow: did
 			}).then(function() {
 				// Modify classmates' nextClassroom and dateOfLastClassroom
@@ -445,6 +444,7 @@ function transferToNewClassroom() {
 					classUpdates["questionNum"] = 1;
 					classUpdates["questionImage"] = classroomData["image"];
 					classUpdates["hasUpdates"] = true;
+					classUpdates["timeReplied"] = currentTimestamp;
 					updates["classrooms/" + cid] = classUpdates;
 					// Set next classroom to null, and has new classrooms to true
 					updates["nextClassroom"] = null;
@@ -468,7 +468,7 @@ function transferToNewClassroom() {
  * If run out of questions, then stop assigning. (Hope this does not happen!)
  * FOR TESTING: Comment out the part about checking if it is time to give new question
  */
-function assignNewQuestion() {
+function assignNewQuestion(completed) {
 	var serverTimezone = (-new Date().getTimezoneOffset()) / 60.0;
 	var serverMinute = new Date().getMinutes();
 
@@ -477,6 +477,7 @@ function assignNewQuestion() {
 		var questionsDict = allQuestionsSnap.val();
 		// Get classrooms
 		db.ref(dbName + "/classrooms").once("value", function(allClassesSnap) {
+
 			allClassesSnap.forEach(function(classData) {
 				var classroom = classData.val();
 				var cid = classData.key;
@@ -510,6 +511,7 @@ function assignNewQuestion() {
 							classUpdates["questionNum"] = questionNum;
 							classUpdates["questionImage"] = questionImage;
 							classUpdates["hasUpdates"] = true;
+							classUpdates["timeReplied"] = Date.now();
 							db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates).then(function() {
 								// Send push notification to this user if needed
 								_sendPushNotification(questionImage, classmateUid, "NEW: " + discipline + " question", "You know you want to open this.");
@@ -518,6 +520,8 @@ function assignNewQuestion() {
 					});
 					return;
 				}
+
+
 			});
 		});
 	})
