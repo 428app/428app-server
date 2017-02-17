@@ -1,15 +1,30 @@
+/**
+ * matcher-assignNewQuestion.js
+ * This file is used to: Assign new questions once a day
+ * NOTE: Called on 428 server through a cron job.
+ */
+
 var admin = require("firebase-admin");
 admin.initializeApp({
-  credential: admin.credential.cert("/home/ec2-user/428app-server/428app-server/app-abdf9-firebase-adminsdk-rsdcc-8311b31e51.json"),
+  credential: admin.credential.cert("./app-abdf9-firebase-adminsdk-rsdcc-8311b31e51.json"),
   databaseURL: "https://app-abdf9.firebaseio.com"
 });
+console.log("matcher-assignNewQuestion.js is running...");
 
-var DISCIPLINES = ["Performing arts", "Visual arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political sciences", "Sports", "Theology", "Biology", "Chemistry", "Earth and Space sciences", "Mathematics", "Physics", "Finance", "Agriculture", "Computer science", "Engineering", "Health", "Psychology", "Culture", "Life hacks", "Education", "Fashion", "Romance"];
+// These disciplines are not currently being used, but is the full list of disciplines that could occur
+var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Life Hacks", "Education", "Fashion", "Romance"];
 var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Most likely to be arrested", "Most dramatic", "Most money", "Party Animal", "Most lovable"]
+var DAYS_TO_GENERATE_CLASSROOM = 7
+
 var db = admin.database();
+
+// NOTE: This will be /test_db when you're testing
 var dbName = "/real_db"
 
+/********************************************************************************************/
+// MAKE THE CALL HERE
 assignNewQuestion();
+/********************************************************************************************/
 
 /**
  * Checks if a user has already been in a classroom of a certain discipline, or if user is that discipline.
@@ -40,10 +55,10 @@ function _userHasDiscipline(user, discipline) {
 }
 
 /**
- * Randomize array elements order in-place. Used to shuffle DISCIPLINES before assigning to classrooms.
+ * Randomize array elements order in-place. Used to shuffle disciplines before assigning to classrooms.
  * Uses Durstenfeld shuffle algorithm.
- * @param  {[Array]} array Input array
- * @return {[Array]}        Randomly shuffled array
+ * @param  {[Object]} array Input array
+ * @return {[Object]} Randomly shuffled array
  */
 function _shuffleArray(array) {
     for (var i = array.length - 1; i > 0; i--) {
@@ -56,25 +71,44 @@ function _shuffleArray(array) {
 }
 
 /**
- * Checks if a user has taken all disciplines, and therefore have no more new classrooms for this user.
- * @param  {[JSON]} user JSON representation of a user
- * @return {[Bool]}      True if user has taken all disciplines, False otherwise
+ * Returns all available disciplines based on what questions there are in Firebase.
+ * @param  {Function} completed		callback function, that takes in array of String disciplines
+ * @return {None}
  */
-function _userHasAllDisciplines(user) {
+function _availableDisciplines(completed) {
+	db.ref(dbName + "/questions").once("value", function(questionsSnap) {
+		var disciplines = Object.keys(questionsSnap.val());
+		completed(disciplines);
+	});
+}
+
+/**
+ * Checks if a user has taken all disciplines, and therefore have no more new classrooms for this user.
+ * @param  {JSON} user 						JSON representation of a user
+ * @param  {[String]} completed		String array of all disciplines
+ * @return {Bool} true if user has taken all disciplines, false otherwise
+ */
+function _userHasAllDisciplines(user, allDisciplines) {
 	var classrooms = user["classrooms"];
 	if (classrooms == undefined || classrooms == null) {
 		return false;
 	}
-	return classrooms.length >= DISCIPLINES.length - 1; // -1 because the user's own discipline counts as one
+	// Grab user disciplines from classrooms dict
+	var userDisciplines = [];
+	for (var cid in classrooms) {
+		var classDict = classrooms[cid];
+		userDisciplines.push(classDict["discipline"]);
+	}
+	return userDisciplines.sort().join(',') === allDisciplines.sort().join(',');
 }
 
 /**
  * Returns a random question from the specified discipline, to be asked in classrooms.
  * Used in choosing the first question of the classroom.
- * @param  {[type]} discipline 		String of discipline
- * @param  {[Function]} completed   Callback function that takes in Question JSON
+ * @param  {String} discipline 		String of discipline
+ * @param  {Function} completed   Callback function that takes in Question JSON
  */
-function randomQuestionOfDiscipline(discipline, completed) {
+function _randomQuestionOfDiscipline(discipline, completed) {
 	var question_ref = db.ref(dbName + "/questions");
 	question_ref.orderByKey().equalTo(discipline).once("value", function(snapshot) {
 		var snap = snapshot.child(discipline);
@@ -98,7 +132,12 @@ function randomQuestionOfDiscipline(discipline, completed) {
 	});
 }
 
-function randomDidYouKnowOfDiscipline(discipline, completed) {
+/**
+ * Returns a random did you know from the specified discipline, to be shown in Superlatives.
+ * @param  {String} discipline 		String of discipline
+ * @param  {Function} completed   Callback function that takes in did you know id
+ */
+function _randomDidYouKnowOfDiscipline(discipline, completed) {
 	var didyouknow_ref = db.ref(dbName + "/didyouknows");
 	didyouknow_ref.orderByKey().equalTo(discipline).once("value", function(snapshot) {
 		var snap = snapshot.child(discipline);
@@ -122,18 +161,19 @@ function randomDidYouKnowOfDiscipline(discipline, completed) {
 
 /**
  * Adds one week to input time stamp.
- * @param {Double} timestamp UNIX time in milliseconds
+ * @param {Double} timestamp 		UNIX time in milliseconds
  * @return {Double} UNIX time in milliseconds
  */
 function _addWeekToTimestamp(timestamp) {
-	return timestamp + (7 * 24 * 60 * 60 * 1000)
+	var oneDay = 24 * 60 * 60 * 1000;
+	return timestamp + (DAYS_TO_GENERATE_CLASSROOM * oneDay)
 }
 
 /**
  * Returns the UNIX timestamp of the upcoming 4:28pm according to the specified timezone.
  * This method is used to assign classroom to a group of new users.
- * @param {[Double]} inputTimezone 
- * @return {[Double]} UNIX timestamp
+ * @param {Double] inputTimezone 		Time zone
+ * @return {Double} UNIX timestamp
  */
 function _nextDay428(inputTimezone) {
 	var nextDate = new Date();
@@ -152,35 +192,37 @@ function _nextDay428(inputTimezone) {
 
 /**
  * Assigns classmates to a classroom in Firebase. Used in generateClassrooms.
- * @param  {[Array]} classmates      List of classmate JSON to be assigned
- * @param  {[String]} discipline     String of discipline or classroomTitle
+ * @param  {[JSON]} classmates      List of classmate JSON to be assigned
+ * @param  {String} discipline 			String of discipline or classroomTitle
+ * @return {None} 
  */
-function assignClassroom(classmates, discipline) {
+function _assignClassroom(classmates, discipline) {
 	var cid = db.ref(dbName + "/classrooms").push().key;	
 	var timeOfNextClassroom = classmates[0]["timeOfNextClassroom"];
 	var timezone = classmates[0]["timezone"];
+	
 	// Time created is defaulted to the next 4:28pm in this timezone
 	var timeCreated = _nextDay428(timezone); // No classroom previously as classmates are new users
 	if (timeOfNextClassroom != undefined) { 
 		// Time is not current time, but future time to create this classroom, 
-		// which is 1 week after a classmate's date of last classroom
+		// which is 1 week after a classmate's last time joining a classroom
 		timeCreated = _addWeekToTimestamp(timeOfNextClassroom);
 	}
-
+	
 	var memberHasVoted = {};
 	for (var i = 0; i < classmates.length; i++) {
 		memberHasVoted[classmates[i]["uid"]] = 0;
 	}
 
 	// Pick a first question for this new classroom
-	randomQuestionOfDiscipline(discipline, function(question) {
+	_randomQuestionOfDiscipline(discipline, function(question) {
 		if (question == null) {
-			console.log("Critical error in assigning question for classroom of discipline: " + discipline);
+			console.log("[Error] Critical error in assigning question for classroom of discipline: " + discipline);
 			return;
 		}
-		randomDidYouKnowOfDiscipline("Physics", function(did) {
+		_randomDidYouKnowOfDiscipline("Physics", function(did) {
 			if (did == null) {
-				console.log("Critical error in assigning didyouknow for classroom of discipline: " + discipline);
+				console.log("[Error] Critical error in assigning didyouknow for classroom of discipline: " + discipline);
 				return;
 			}
 			
@@ -190,8 +232,8 @@ function assignClassroom(classmates, discipline) {
 			// Create the classroom
 			db.ref(dbName + "/classrooms/" + cid).set({
 				title: discipline,
-				image: question["image"], // Image is image of question
-				timeCreated: timeCreated,
+				image: question["image"], // Image of classroom is image of question
+				timeCreated: timeCreated, // This time created is not now, but the time the classroom will be transferred
 				timezone: timezone,
 				memberHasVoted: memberHasVoted,
 				questions: questions,
@@ -215,12 +257,16 @@ function assignClassroom(classmates, discipline) {
  * 1) timeCreated in the future, 
  * 2) discipline that classmate has not taken,
  * 3) same timezone as classmate.
+ * 4) Less than or equal to 12 classmates.
  * Used in generateClassrooms.
- * @param {[JSON]} classmate JSON of classmate
+ * NOTE: Different behavior for a new user. 
+ * A new user must get matched the next day 428, regardless of the number of classmates in the class.
+ * @param {[JSON]} classmate 		JSON of classmate
+ * @return {None}
  */
-function addToAvailableClassroom(classmate) {
-	
-	// Find all available classrooms of this classmate
+function _addToAvailableClassroom(classmate) {	
+
+	// Assemble disciplines taken by this classmate
 	var disciplinesTaken = [classmate["discipline"]];
 	var classroomsTaken = classmate["classrooms"];
 	if (classroomsTaken != undefined) {
@@ -228,31 +274,61 @@ function addToAvailableClassroom(classmate) {
 			disciplinesTaken.push(classroomsTaken[cid]["discipline"]);
 		}
 	}
+
 	var timezone = classmate["timezone"];
-	var disciplinesAvailable = DISCIPLINES.filter(function(x) { return disciplinesTaken.indexOf(x) < 0 });
-	// For each of these disciplines, look in classrooms to find the classroom that has timeCreated > now
+	var timestampToUse = Date.now();
+	// If classmate has no timeOfNextClassroom, this is a new user!
+	var isNewUser = classmate["timeOfNextClassroom"] == null;
+	if (isNewUser) {
+		// For new users, need to assign classrooms of the next day 428, OR just don't assign if cannot find
+		timestampToUse = _nextDay428(timezone);
+	}
+	
+	// For each of these disciplines, look in classrooms that have not been assigned yet
+	// These have timeCreated > now (or after next day 428)
 	var currentTimestamp = Date.now();
-	db.ref(dbName + "/classrooms").orderByChild("timeCreated").startAt(currentTimestamp).once("value", function(snap) {
+	db.ref(dbName + "/classrooms").orderByChild("timeCreated").startAt(timestampToUse).once("value", function(snap) {
+		
 		// Find the classrooms that are included in the disciplines available, and assign to the first one
+		var classroomFound = false;
 		snap.forEach(function(data) {
+			if (classroomFound) {
+				return;
+			}
+			var cid = data.key;
 			var classroom = data.val();
 			var d = classroom["title"];
 
-			// Must make sure classroom is same time zone as classmate, and is a discipline user has not taken
-			if (classroom["timezone"] == timezone && disciplinesAvailable.indexOf(d) > -1) { 
-				// Modify classroom
-				var cid = data.key;
-				var uid = classmate["uid"];
-				var classUpdates = {};
-				classUpdates["/memberHasVoted/" + uid] = 0;
-				db.ref(dbName + "/classrooms/" + cid).update(classUpdates);
-
-				// Modify user
-				var userUpdates = {};
-				userUpdates["/nextClassroom"] = cid;
-				userUpdates["/timeOfNextClassroom"] = classroom["timeCreated"];
-				db.ref(dbName + "/users/" + uid).update(userUpdates);
+			// If new user, can only accept exactly next day 4:28pm
+			if (isNewUser && classroom["timeCreated"] != timestampToUse) {
+				return;
 			}
+
+			// Make sure classroom is same time zone as classmate, and is a discipline user has not taken
+			if (classroom["timezone"] != timezone || disciplinesTaken.indexOf(d) >= 0) {
+				return;
+			}
+
+			// NOTE: Void this rule if it is a new user, as they NEED a classroom
+			var MAX_CLASS_SIZE = 12
+			if (!isNewUser && Object.keys(classroom["memberHasVoted"]).length >= MAX_CLASS_SIZE) {
+				return;
+			}
+
+			// Found the right classroom!
+			classroomFound = true;
+
+			// Modify classroom
+			var uid = classmate["uid"];
+			var classUpdates = {};
+			classUpdates["/memberHasVoted/" + uid] = 0;
+			db.ref(dbName + "/classrooms/" + cid).update(classUpdates);
+
+			// Modify user
+			var userUpdates = {};
+			userUpdates["/nextClassroom"] = cid;
+			userUpdates["/timeOfNextClassroom"] = classroom["timeCreated"];
+			db.ref(dbName + "/users/" + uid).update(userUpdates);
 		});
 	});
 }
@@ -263,11 +339,12 @@ Below are they key functions that are run on cron jobs on the server.
 
 /**
  * KEY FUNCTION: Algorithm that generates classrooms for users
- * TO BE RUN: Hourly at :00
+ * TO BE RUN: :10 and :40 each hour on system time.
  * Right now, the algorithm is very primitive and mainly matches 4 or more (most of the time 7) 
  * classmates to one classroom. The classmates will be from the timezone and will receive 
  * their new classroom exactly after a week (or less, though exactly one week most of the time). 
- * Users will only be matched classrooms they have never taken before.
+ * Users will only be matched classrooms of disciplines they have never taken before.
+ * NOTE: Not all users will be matched, and there is a small possibility a user will not get a classroom.
  * TODO: 
  * 1) If two users have been in a classroom before, should not match again
  * 2) Facebook friends should not match with one another
@@ -277,108 +354,132 @@ function generateClassrooms() {
 	db.ref(dbName + "/users").once("value", function(usersSnap) {
 		
 		/** 
-		 * Break users down by timezone, of format "<timestamp of next classroom joined or 0 if none>-<timezone Int>, i.e. 0-8, 1483892880000-12"
+		 * Break users down by timezone, of format "<timestamp of next classroom joined or 0 if none>/<timezone Int>, i.e. 0/8, 1483892880000/-5"
 		 * This format is crucial as it allows us to sort by ascending order of this format. 
 		 * This allows us to assign users that have no classrooms yet, before users who have had classrooms a long time ago, 
 		 * and then users who only just got their classrooms.
 		 */
+
+		// First group users from the same timezone, and those who will get a classroom at the next same time together
 		var usersByTimezone = {};
 
-		usersSnap.forEach(function(userSnap) {
-			var uid = userSnap.key;
-			var user = userSnap.val();
-			if (user["nextClassroom"] == undefined || user["nextClassroom"] == null) {
-				// Group this user into the right timezone
+		_availableDisciplines(function(allDisciplines) {
+			usersSnap.forEach(function(userSnap) {
+				var uid = userSnap.key;
+				var user = userSnap.val();
+				user["uid"] = uid;
+
+				// If user already has next classroom, return
+				if (user["nextClassroom"] != undefined && user["nextClassroom"] != null) {
+					return;
+				}
+				// If user already has all disciplines, return
+				if (_userHasAllDisciplines(user, allDisciplines)) {
+					return;
+				}
+
+				// Group this user into the right timezone, and time of next classroom
 				var timezone = user["timezone"];
-				var timeOfNextClassroom = 0 // 0 is used because it will appear in front of any timestamp lexicographically
+				// 0 is used because it will appear in front of any timestamp lexicographically
+				// We want to process users with no classroom yet first, so we use 0
+				var timeOfNextClassroom = 0
 				if (user["timeOfNextClassroom"] != undefined && user["timeOfNextClassroom"] != null) {
 					timeOfNextClassroom = user["timeOfNextClassroom"];
 				}
-				var format = timeOfNextClassroom + "-" + timezone;
-				var classmates = usersByTimezone[format];
-				if (classmates == undefined) {
-					classmates = [];
-				}
-				user["uid"] = uid;
-				// Do not push users that have taken all disciplines
-				if (!_userHasAllDisciplines(user)) {
-					classmates.push(user);	
-				}
-				if (classmates.length > 0) {
-					usersByTimezone[format] = classmates;	
+				var format = timeOfNextClassroom + "/" + timezone;
+
+				// Group classmates by timezone
+				var classmates = usersByTimezone[format] == undefined ? [] : usersByTimezone[format]
+				classmates.push(user);
+				usersByTimezone[format] = classmates;
+
+			});
+			
+			// Most classrooms will have 7 classmates, but can be any number more than or equal to 4
+			var IDEAL_CLASS_SIZE = 7
+			var MIN_CLASS_SIZE = 4
+			var SHUFFLED_DISCIPLINES = _shuffleArray(allDisciplines);
+
+			for (timezone in usersByTimezone) {	
+			
+				var classmatesLeft = usersByTimezone[timezone];
+				
+				var n = classmatesLeft.length;
+				var discipline_index = 0; // Repeatedly iterate through disciplines with this index mod number of disciplines
+				
+				// Track number of classmatesLeft between each discipline cycle
+				var currLeft = n;
+				var prevLeft = n+1; // Just any number that is more than currLeft
+
+				while (classmatesLeft.length > 0) {
+					var discipline = SHUFFLED_DISCIPLINES[discipline_index % SHUFFLED_DISCIPLINES.length]; 
+					discipline_index++;
+
+					var classmatesBuffer = []; // Temporary buffer to collect classmates until ideal class size reached, then assign a classroom
+					var i = 0;
+					while (classmatesBuffer.length < IDEAL_CLASS_SIZE) {
+						i++;
+						var classmate = classmatesLeft.shift(); // Take from front of queue
+
+						if (classmate == undefined) {
+							// No classmates left, break out of this while loop and assign students in buffer through another way below
+							break;
+						}
+
+						// Only push this user when he or she has not taken the discipline
+						if (!_userHasDiscipline(classmate, discipline)) {
+							classmatesBuffer.push(classmate);
+						} else { // Has taken the discipline, push this user back to classmates left
+							classmatesLeft.push(classmate);
+						}
+						if (i >= n) { // Gone through all classmatesLeft once already, break out of loop to avoid infinite loop
+							break;
+						}
+					}
+
+					// Having either assembled ideal class size, or visited all classmates left:
+					if (classmatesBuffer.length >= MIN_CLASS_SIZE) {
+						_assignClassroom(classmatesBuffer, discipline);
+					} else {
+						// Transfer buffer back to classmates left
+						classmatesLeft = classmatesLeft.concat(classmatesBuffer);	
+					}
+
+					// Cycle to the next discipline if there are still disciplines left to cycle
+					if (discipline_index % SHUFFLED_DISCIPLINES.length != 0) {
+						continue;
+					}
+
+					// At the end of each discipline cycle, check number of classmatesLeft
+					// If same number, it means remaining users cannot be grouped into classrooms
+					prevLeft = currLeft;
+					currLeft = classmatesLeft.length;
+					if (prevLeft == currLeft) {
+						// Put these remaining users in classrooms that have already been created
+						while (classmatesLeft.length > 0) {
+							// NOTE: This does not ensure all remaining users get a classroom at this time
+							_addToAvailableClassroom(classmatesLeft.pop());
+						}
+					}
 				}
 			}
 		});
-		
-		// Most classrooms will have 7 classmates, but can be any number more than or equal to 4
-		var IDEAL_CLASS_SIZE = 7
-		var SHUFFLED_DISCIPLINES = _shuffleArray(DISCIPLINES);
-
-		for (timezone in usersByTimezone) {	
-			
-			var classmatesLeft = usersByTimezone[timezone];
-			
-			var n = classmatesLeft.length;
-			var discipline_index = 0; // Repeatedly iterate through disciplines with this index mod number of disciplines
-			
-			// Track number of classmatesLeft between each discipline cycle
-			var currLeft = n;
-			var prevLeft = n+1; // Just any number that is more than currLeft
-
-			while (classmatesLeft.length > 0) {
-				
-				var discipline = DISCIPLINES[discipline_index % DISCIPLINES.length]; 
-				discipline_index++;
-
-				var classmates = []; // Temporary buffer to collect classmates until ideal class size reached, then assign a classroom
-				var i = 0;
-				while (classmates.length < IDEAL_CLASS_SIZE) {
-					i++;
-					var classmate = classmatesLeft.shift(); // Take from front of queue
-					if (classmate == undefined) {
-						// No classmates left, break out of this while loop
-						break;
-					}
-					
-					if (!_userHasDiscipline(classmate, discipline)) {
-						classmates.push(classmate);
-					} else {
-						classmatesLeft.push(classmate);
-					}
-					if (i >= n) { // Gone through all classmatesLeft once already, break out of loop
-						break;
-					}
-				}
-
-				if (classmates.length > 3) {
-					assignClassroom(classmates, discipline);
-				} else {
-					classmatesLeft = classmatesLeft.concat(classmates);	
-				}
-
-				if (discipline_index % DISCIPLINES.length != 0) { // Not end of discipline cycle
-					continue;
-				}
-
-				// At the end of each discipline cycle, check number of classmatesLeft
-				// If same number, it means remaining users cannot be grouped into classrooms
-				prevLeft = currLeft;
-				currLeft = classmatesLeft.length;
-				if (prevLeft == currLeft) {
-					// Inspect each of these remaining users, and put them in classrooms of their available disciplines that is not yet created
-					while (classmatesLeft.length > 0) {
-						addToAvailableClassroom(classmatesLeft.pop());
-					}
-				}
-			}
-		}
 	});
 }
 
-// NOTE: Daily alert is notifying new classroom and new question
-// This function logs a task to the queue for queue_worker to send out push notification
-function _sendPushNotification(posterImage, recipientUid, title, body) {
-	// First figure if this user has Daily Alert settings enabled
+/**
+ * Used by transferToNewClassroom and assignNewQuestion to notify user, and increment badge count.
+ * Specifically, logs a task to the queue for queue_worker server to send out the push notification.
+ * @param  {String} posterImage         Image of poster
+ * @param  {String} recipientUid        Uid of recipient
+ * @param  {String} title               Title of push notification
+ * @param  {String} body                Body of push notification
+ * @param  {Int} additionalPushCount 		Either 0 or 1, added to the current push count
+ * @return {None}                     
+ */
+function _sendPushNotification(posterImage, recipientUid, title, body, additionalPushCount) {
+	
+	// First figure if this user has Daily Alert settings enabled. If not enabled, don't push.
 	db.ref(dbName + "/userSettings/" + recipientUid).once("value", function(settingsSnap) {
 		var settings = settingsSnap.val();
 		if (settings == null || settings["dailyAlert"] == null || settings["dailyAlert"] == false) {
@@ -402,11 +503,16 @@ function _sendPushNotification(posterImage, recipientUid, title, body) {
 				posterImage: posterImage,
 				recipientUid: recipientUid,
 				pushToken: pushToken,
-				pushCount: pushCount, // Don't bother incrementing push count for daily alerts	
+				pushCount: pushCount + additionalPushCount, 
 				inApp: inApp,
 				cid: "",
 				title: title,
 				body: body
+			}).then(function() {
+				// Adjust user's push count if necessary
+				if (additionalPushCount == 1) {
+					db.ref(dbName + "/users/" + recipientUid + "/pushCount").set(pushCount + 1);
+				}
 			});
 		});
 	});
@@ -421,42 +527,45 @@ function _sendPushNotification(posterImage, recipientUid, title, body) {
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var marginOfTime = 1 * 60 * 1000; // 1min leeway
+	var marginOfTime = 30 * 60 * 1000; // TODO: Change back to 1min leeway
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
 	.startAt(currentTimestamp - marginOfTime)
 	.endAt(currentTimestamp + marginOfTime).once("value", function(snap) {
 		snap.forEach(function(data) {
 			var user = data.val();
+			var uid = data.key;
 			var timeOfNextClassroom = user["timeOfNextClassroom"];
 			var cid = user["nextClassroom"];
-			if (cid != undefined && cid != null) { // Next classroom not yet assigned
-				// Time to assign new classroom to user
-				var updates = {};
-				var uid = data.key;
-				// Grab the details of the other classroom
-				db.ref(dbName + "/classrooms/" + cid).once("value", function(classSnap) {
-					var classroomData = classSnap.val();
-					if (classroomData == null) {
-						return;
-					}
-					var classUpdates = {};
-					var discipline = classroomData["title"];
-					classUpdates["discipline"] = discipline;
-					classUpdates["questionNum"] = 1;
-					classUpdates["questionImage"] = classroomData["image"];
-					classUpdates["hasUpdates"] = true;
-					classUpdates["timeReplied"] = currentTimestamp;
-					updates["classrooms/" + cid] = classUpdates;
-					// Set next classroom to null, and has new classrooms to true
-					updates["nextClassroom"] = null;
-					updates["hasNewClassroom"] = classroomData["title"];
-					db.ref(dbName + "/users/" + uid).update(updates).then(function() {
-						_sendPushNotification("", uid, "NEW CLASSROOM", "It's time to love " + discipline);
-					});
-				});
 
+			if (cid == undefined || cid == null) {
+				console.log("[Info] Time has arrived but user has no next classroom. Likely user has done all disciplines, uid: " + uid);
+				return;
 			}
+			// Time to assign new classroom to user
+			var updates = {};
+			// Grab the details of the new classroom
+			db.ref(dbName + "/classrooms/" + cid).once("value", function(classSnap) {
+				var classroomData = classSnap.val();
+				if (classroomData == null) {
+					console.log("[Error] User has next classroom, but classroom does not exist. uid: " + uid + ", cid: " + cid);
+					return;
+				}
+				var classUpdates = {};
+				var discipline = classroomData["title"];
+				classUpdates["discipline"] = discipline;
+				classUpdates["questionNum"] = 1;
+				classUpdates["questionImage"] = classroomData["image"];
+				classUpdates["hasUpdates"] = true;
+				classUpdates["timeReplied"] = currentTimestamp;
+				updates["classrooms/" + cid] = classUpdates;
+				// Set next classroom to null, and has new classrooms to true
+				updates["nextClassroom"] = null;
+				updates["hasNewClassroom"] = classroomData["title"];
+				db.ref(dbName + "/users/" + uid).update(updates).then(function() {
+					_sendPushNotification("", uid, "NEW: Classroom", "Hey you! Time to learn " + discipline + "!", 1);
+				});
+			});
 		});
 	});
 }
@@ -500,6 +609,7 @@ function assignNewQuestion(completed) {
 				var qidsAsked = Object.keys(classroom["questions"]);
 				var questionsAvailable = questionsDict[discipline];
 				for (var qid in questionsAvailable) {
+
 					if (qidsAsked.indexOf(qid) >= 0) continue; // Question asked before, skip
 					// Assign this question
 					var questionData = questionsAvailable[qid];
@@ -509,21 +619,26 @@ function assignNewQuestion(completed) {
 
 					db.ref(dbName + "/classrooms/" + cid + "/questions/" + qid).set(currentTimestamp).then(function() {
 						classmateUids.forEach(function(classmateUid) {
-							var classUpdates = {};
-							classUpdates["questionNum"] = questionNum;
-							classUpdates["questionImage"] = questionImage;
-							classUpdates["hasUpdates"] = true;
-							classUpdates["timeReplied"] = Date.now();
-							db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates).then(function() {
-								// Send push notification to this user if needed
-								_sendPushNotification(questionImage, classmateUid, "NEW: " + discipline + " question", "You know you want to open this.");
-							});
+							// First check if this user has updates for this classroom to decide if we should increment push count
+							db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid + "/hasUpdates").once("value", function(userHasViewedSnap) {
+								var userHasViewed = userHasViewedSnap.val()
+								var additionalPushCount = userHasViewed == true ? 0 : 1
+								var classUpdates = {};
+								classUpdates["questionNum"] = questionNum;
+								classUpdates["questionImage"] = questionImage;
+								classUpdates["hasUpdates"] = true;
+								classUpdates["timeReplied"] = Date.now();
+								db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates).then(function() {
+									// Send push notification to this user if needed
+									_sendPushNotification(questionImage, classmateUid, "NEW: " + discipline + " question", "You know you want to open this.", additionalPushCount);
+								});
+							})
 						});
 					});
+					// This return is important to return from the loop of questions after done
 					return;
 				}
-
-
+				// End of one classroom, move on to next classroom to assign new question
 			});
 		});
 	})
@@ -531,7 +646,7 @@ function assignNewQuestion(completed) {
 
 /**
  * KEY FUNCTION: Assigns superlatives to classrooms after 1 week.
- * TO BE RUN: Hourly at :00
+ * TO BE RUN: :10 and :40 each hour on system time.
  * If classroom's timeCreated is 1 week before current time, then do the following steps:
  * Step 1) Randomly pick 4 superlatives from all superlatives
  * Step 2) For each superlative: initiate all uids and number of votes to 0
@@ -542,7 +657,7 @@ function assignSuperlatives() {
 	var oneWeek = 7 * 24 * 60 * 60 * 1000;
 	var marginOfTime = 1 * 24 * 60 * 60 * 1000; // 1 day of margin
 	db.ref(dbName + "/classrooms")
-	.orderByChild("timeCreated") // If time created is more than a week from today's date, but less than one week + 
+	.orderByChild("timeCreated") // If time created is about a week ago from current time
 	.startAt(currentTimestamp - oneWeek - marginOfTime)
 	.endAt(currentTimestamp - oneWeek + marginOfTime)
 	.once("value", function(snap) {
@@ -553,9 +668,9 @@ function assignSuperlatives() {
 				return;
 			}
 			var cid = data.key;
-			var numSuperlatives = 4;
+			var NUM_SUPERLATIVES = 4;
 			var SHUFFLED_SUPERLATIVES = _shuffleArray(SUPERLATIVES);
-			var chosenSuperlatives = SHUFFLED_SUPERLATIVES.slice(0, numSuperlatives);
+			var chosenSuperlatives = SHUFFLED_SUPERLATIVES.slice(0, NUM_SUPERLATIVES);
 
 			// Grab list of uids
 			var uidsAndVotedUids = classroom["memberHasVoted"];
@@ -564,7 +679,6 @@ function assignSuperlatives() {
 			}
 			
 			var superlativesDict = {};
-
 			chosenSuperlatives.forEach(function(sup) {
 				superlativesDict[sup] = uidsAndVotedUids;
 			});

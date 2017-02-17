@@ -1,17 +1,30 @@
+/**
+ * queue_worker.js
+ * Push server that uses firebase-queue to get tasks from the queue node on Firebase.
+ * Uses push_notify spec defined on the queue/specs node.
+ * To run, just run: node queue_worker.js
+ * NOTE: This can simulatenously be run on multiple machines if we need to scale.
+ * NOTE: There is hardly a need to configure this file. Don't bother touching it unless absolutely necessary.
+ */
+
 var admin = require("firebase-admin");
 admin.initializeApp({
 	credential: admin.credential.cert("./app-abdf9-firebase-adminsdk-rsdcc-8311b31e51.json"),
 	databaseURL: "https://app-abdf9.firebaseio.com"
 });
+console.log("Push server running...");
 
 
 var db = admin.database();
-var dbName = "/real_db"
+
+// NOTE: This will be /test_db when you're testing
+var dbName = "/real_db";
+
 var ref = db.ref(dbName + "/queue");
 var Queue = require('firebase-queue');
 
 var options = {
-	'specId': 'push_notify',
+	'specId': 'push_notify', // This spec has to match the spec in Firebase
 	'numWorkers': 10
 };
 
@@ -105,4 +118,3 @@ function sendNotification(pushToken, type, posterUid, cid, posterImage, posterNa
 			}
 	});
 }
-
