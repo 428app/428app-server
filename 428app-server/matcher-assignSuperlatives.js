@@ -9,7 +9,7 @@ admin.initializeApp({
   credential: admin.credential.cert("./app-abdf9-firebase-adminsdk-rsdcc-8311b31e51.json"),
   databaseURL: "https://app-abdf9.firebaseio.com"
 });
-console.log("matcher-assignNewQuestion.js is running...");
+console.log("matcher-assignSuperlatives.js is running...");
 
 // These disciplines are not currently being used, but is the full list of disciplines that could occur
 var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Life Hacks", "Education", "Fashion", "Romance"];

@@ -38,7 +38,7 @@ var db = admin.database();
  */
 function writeQuestion(discipline, image, question, answer, isVideoAnswer) {
 	var qid = db.ref(dbName + "/questions/" + discipline).push().key;
-	db.ref(dbName + "/questions/" + classroomTitle + "/" + qid).set({
+	db.ref(dbName + "/questions/" + discipline + "/" + qid).set({
 		image: image,
 		question: question,
 		answer: answer,
@@ -62,7 +62,7 @@ function writeQuestionsFromTSVFile(tsvFile) {
 	        if (csvrow.length != 5) {
 	        	return;
 	        }
-	        var classroomTitle = csvrow[0];
+	        var discipline = csvrow[0];
 	        var image = csvrow[1];
 	        var question = csvrow[2];
 	        var answer = csvrow[3];
@@ -75,7 +75,7 @@ function writeQuestionsFromTSVFile(tsvFile) {
 	        	console.log("isVideoAnswer is neither 'true' or 'false'")
 	        	return;
 	        }
-	        writeQuestion(classroomTitle, image, question, answer, isVideoAnswer);
+	        writeQuestion(discipline, image, question, answer, isVideoAnswer);
 	    })
 	    .on('end',function() {
 	    });
@@ -89,8 +89,8 @@ function writeQuestionsFromTSVFile(tsvFile) {
  * @return {None}                
  */
 function writeDidYouKnow(discipline, videoLink, shareLink) {
-	var did = db.ref(dbName + "/didyouknows/" + classroomTitle).push().key;
-	db.ref(dbName + "/didyouknows/" + classroomTitle + "/" + did).set({
+	var did = db.ref(dbName + "/didyouknows/" + discipline).push().key;
+	db.ref(dbName + "/didyouknows/" + discipline + "/" + did).set({
 		videoLink: videoLink,
 		shareLink: shareLink
 	});

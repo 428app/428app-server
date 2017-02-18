@@ -530,7 +530,7 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var marginOfTime = 30 * 60 * 1000; // TODO: Change back to 1min leeway
+	var marginOfTime = 999999 * 60 * 1000; // TODO: Change back to 1min leeway
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
 	.startAt(currentTimestamp - marginOfTime)
