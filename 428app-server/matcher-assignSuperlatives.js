@@ -11,15 +11,17 @@ admin.initializeApp({
 });
 console.log("matcher-assignSuperlatives.js is running...");
 
-// These disciplines are not currently being used, but is the full list of disciplines that could occur
-var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Life Hacks", "Education", "Fashion", "Romance"];
-var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Most likely to be arrested", "Most dramatic", "Most money", "Party Animal", "Most lovable"]
-var DAYS_TO_GENERATE_CLASSROOM = 7
-
+// NOTE: This will be /test_db when you're testing
+var dbName = "/real_db"
 var db = admin.database();
 
-// NOTE: This will be /test_db when you're testing
-var dbName = "/test_db"
+// These disciplines are not currently being used, but is the full list of disciplines that could occur
+var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Education", "Fashion"];
+var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Likely to be arrested", "Most dramatic", "Richest right now", "Party animal", "Most lovable", "Future billionaire", "Boyfriend material", "Prime minister to-be", "Trump's best friend", "Sex god", "FBI agent", "Actually a celebrity", "Kim K.'s next BF", "Cat lover", "Most hipster", "Worst driver", "Selfie King/Queen", "Most innocent", "Drunkard"];
+
+// Temporary
+var DAYS_TO_GENERATE_CLASSROOM = 1 // TODO: New classroom every day, change back to random
+var DAYS_TO_ASSIGN_SUPERLATIVES = 1 // TODO: Change back to 7
 
 /********************************************************************************************/
 // MAKE THE CALL HERE
@@ -36,16 +38,14 @@ assignSuperlatives();
 function _userHasDiscipline(user, discipline) {
 	var userDiscipline = user["discipline"];
 	var classrooms = user["classrooms"];
-	
-	if (userDiscipline == undefined || classrooms == undefined || classrooms == null) {
+	if (userDiscipline == undefined) {
+		console.log("[Error] User does not have a discipline: " + user["uid"]);
 		return false;
 	}
-
 	if (userDiscipline == discipline) {
 		return true;
 	}
-
-	for (cid in classrooms) {
+	for (var cid in classrooms) {
 		var d = classrooms[cid]["discipline"];
 		if (discipline == d) {
 			return true;
@@ -208,7 +208,7 @@ function _assignClassroom(classmates, discipline) {
 	if (timeOfNextClassroom != undefined) { 
 		// Time is not current time, but future time to create this classroom, 
 		// which is 1 week after a classmate's last time joining a classroom
-		timeCreated = _addWeekToTimestamp(timeOfNextClassroom);
+		timeCreated = _addRandomDaysToTimestamp(timeOfNextClassroom);
 	}
 	
 	var memberHasVoted = {};
@@ -222,7 +222,7 @@ function _assignClassroom(classmates, discipline) {
 			console.log("[Error] Critical error in assigning question for classroom of discipline: " + discipline);
 			return;
 		}
-		_randomDidYouKnowOfDiscipline("Physics", function(did) {
+		_randomDidYouKnowOfDiscipline(discipline, function(did) {
 			if (did == null) {
 				console.log("[Error] Critical error in assigning didyouknow for classroom of discipline: " + discipline);
 				return;
@@ -253,6 +253,7 @@ function _assignClassroom(classmates, discipline) {
 		});
 	})
 }
+
 
 /**
  * Assigns classmate to available classroom that has 
@@ -290,7 +291,7 @@ function _addToAvailableClassroom(classmate) {
 	// These have timeCreated > now (or after next day 428)
 	var currentTimestamp = Date.now();
 	db.ref(dbName + "/classrooms").orderByChild("timeCreated").startAt(timestampToUse).once("value", function(snap) {
-		
+
 		// Find the classrooms that are included in the disciplines available, and assign to the first one
 		var classroomFound = false;
 		snap.forEach(function(data) {
@@ -335,6 +336,19 @@ function _addToAvailableClassroom(classmate) {
 	});
 }
 
+// Test function used to ungenerate classrooms after generate is run
+function _ungenerateClassrooms() {
+	db.ref(dbName + "/users").once("value", function(usersSnap) {
+		usersSnap.forEach(function(userData) {
+			var uid = userData.key;
+			db.ref(dbName + "/users/" + uid + "/timeOfNextClassroom").set(null);
+			db.ref(dbName + "/users/" + uid + "/nextClassroom").set(null);
+			db.ref(dbName + "/users/" + uid + "/hasNewClassroom").set(null);
+		});
+	});
+	db.ref(dbName + "/classrooms").set(null);
+}
+
 /***************************************************************************************************
 Below are they key functions that are run on cron jobs on the server.
 ***************************************************************************************************/
@@ -364,7 +378,6 @@ function generateClassrooms() {
 
 		// First group users from the same timezone, and those who will get a classroom at the next same time together
 		var usersByTimezone = {};
-
 		_availableDisciplines(function(allDisciplines) {
 			usersSnap.forEach(function(userSnap) {
 				var uid = userSnap.key;
@@ -381,7 +394,7 @@ function generateClassrooms() {
 				}
 
 				// If user hasn't been online for 2 weeks (inactive), do not match user to classroom
-				if (user["lastSeen"] == undefined || user["lastSeen"] < Date.now() - (2 * 7 * 24 * 60 * 60 * 1000)) {
+				if (user["lastSeen"] == undefined || user["lastSeen"] < (Date.now() - (2 * 7 * 24 * 60 * 60 * 1000))) {
 					return;
 				}
 
@@ -396,13 +409,13 @@ function generateClassrooms() {
 				}
 				var format = timeOfNextClassroom + "/" + timezone;
 
-
 				// Group classmates by timezone
 				var classmates = usersByTimezone[format] == undefined ? [] : usersByTimezone[format]
 				classmates.push(user);
 				usersByTimezone[format] = classmates;
 
 			});
+
 			
 			// Most classrooms will have 7 classmates, but can be any number more than or equal to 4
 			var IDEAL_CLASS_SIZE = 7
@@ -536,6 +549,7 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
  * 1) Add nextClassroom to classrooms and set nextClassroom to null, 
  * 2) Set hasNewClassroom to classroom title, 
+ * FOR TESTING: Change margin of time to 999999 * 60 * 1000
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
@@ -563,7 +577,7 @@ function transferToNewClassroom() {
 					console.log("[Error] User has next classroom, but classroom does not exist. uid: " + uid + ", cid: " + cid);
 					return;
 				}
-				
+				var discipline = classroomData["title"];
 				// Get the first question
 				var qid = Object.keys(classroomData["questions"])[0];
 				db.ref(dbName + "/questions/" + discipline + "/" + qid + "/question").once("value", function(questionSnap) {
@@ -665,7 +679,6 @@ function assignNewQuestion(completed) {
 	})
 }
 
-assignSuperlatives();
 /**
  * KEY FUNCTION: Assigns superlatives to classrooms after 1 week.
  * TO BE RUN: :10 and :40 each hour on system time.
@@ -676,12 +689,12 @@ assignSuperlatives();
  */
 function assignSuperlatives() {
 	var currentTimestamp = Date.now();
-	var oneWeek = 7 * 24 * 60 * 60 * 1000;
-	var marginOfTime = 1 * 24 * 60 * 60 * 1000; // 1 day of margin
+	var oneWeek = DAYS_TO_ASSIGN_SUPERLATIVES * 24 * 60 * 60 * 1000;
+	var marginOfTime = 1 * 60 * 60 * 1000; // 1 hour of margin
 	db.ref(dbName + "/classrooms")
 	.orderByChild("timeCreated") // If time created is about a week ago from current time
-	// .startAt(currentTimestamp - oneWeek - marginOfTime)
-	// .endAt(currentTimestamp - oneWeek + marginOfTime)
+	.startAt(currentTimestamp - oneWeek - marginOfTime)
+	.endAt(currentTimestamp - oneWeek + marginOfTime)
 	.once("value", function(snap) {
 		snap.forEach(function(data) {
 			var classroom = data.val();
