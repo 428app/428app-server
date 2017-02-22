@@ -20,14 +20,14 @@ admin.initializeApp({
 console.log("matcher.js is running...");
 
 // These disciplines are not currently being used, but is the full list of disciplines that could occur
-var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Life Hacks", "Education", "Fashion", "Romance"];
+var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Education", "Fashion"];
 var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Most likely to be arrested", "Most dramatic", "Most money", "Party Animal", "Most lovable"]
 var DAYS_TO_GENERATE_CLASSROOM = 1 // TODO: New classroom every day, change back to 7 before production
 
 var db = admin.database();
 
 // NOTE: This will be /test_db when you're testing
-var dbName = "/real_db"
+var dbName = "/test_db"
 
 /**
  * Checks if a user has already been in a classroom of a certain discipline, or if user is that discipline.
@@ -163,13 +163,15 @@ function _randomDidYouKnowOfDiscipline(discipline, completed) {
 }
 
 /**
- * Adds one week to input time stamp.
+ * Adds 5 days to 8 days to input time stamp.
+ * The randomness is to prevent people from the same group from getting the same classroom.
  * @param {Double} timestamp 		UNIX time in milliseconds
  * @return {Double} UNIX time in milliseconds
  */
-function _addWeekToTimestamp(timestamp) {
+function _addRandomDaysToTimestamp(timestamp) {
 	var oneDay = 24 * 60 * 60 * 1000;
-	return timestamp + (DAYS_TO_GENERATE_CLASSROOM * oneDay)
+	var random = Math.round((Math.random() * 3)) + 5
+	return timestamp + (DAYS_TO_GENERATE_CLASSROOM * oneDay) // TODO: Change to random * oneDay
 }
 
 /**
@@ -381,8 +383,14 @@ function generateClassrooms() {
 					return;
 				}
 
+				// If user hasn't been online for 2 weeks (inactive), do not match user to classroom
+				if (user["lastSeen"] == undefined || user["lastSeen"] < Date.now() - (2 * 7 * 24 * 60 * 60 * 1000)) {
+					return;
+				}
+
 				// Group this user into the right timezone, and time of next classroom
 				var timezone = user["timezone"];
+				
 				// 0 is used because it will appear in front of any timestamp lexicographically
 				// We want to process users with no classroom yet first, so we use 0
 				var timeOfNextClassroom = 0
@@ -390,6 +398,7 @@ function generateClassrooms() {
 					timeOfNextClassroom = user["timeOfNextClassroom"];
 				}
 				var format = timeOfNextClassroom + "/" + timezone;
+
 
 				// Group classmates by timezone
 				var classmates = usersByTimezone[format] == undefined ? [] : usersByTimezone[format]
@@ -406,6 +415,9 @@ function generateClassrooms() {
 			for (timezone in usersByTimezone) {	
 			
 				var classmatesLeft = usersByTimezone[timezone];
+
+				// Shuffle classmates left to make sure users do not get the same classmates each time
+				classmatesLeft = _shuffleArray(classmatesLeft)
 				
 				var n = classmatesLeft.length;
 				var discipline_index = 0; // Repeatedly iterate through disciplines with this index mod number of disciplines
@@ -530,7 +542,7 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var marginOfTime = 999999 * 60 * 1000; // TODO: Change back to 1min leeway
+	var marginOfTime = 1 * 60 * 1000; // 1min leeway
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
 	.startAt(currentTimestamp - marginOfTime)
@@ -554,19 +566,26 @@ function transferToNewClassroom() {
 					console.log("[Error] User has next classroom, but classroom does not exist. uid: " + uid + ", cid: " + cid);
 					return;
 				}
-				var classUpdates = {};
-				var discipline = classroomData["title"];
-				classUpdates["discipline"] = discipline;
-				classUpdates["questionNum"] = 1;
-				classUpdates["questionImage"] = classroomData["image"];
-				classUpdates["hasUpdates"] = true;
-				classUpdates["timeReplied"] = currentTimestamp;
-				updates["classrooms/" + cid] = classUpdates;
-				// Set next classroom to null, and has new classrooms to true
-				updates["nextClassroom"] = null;
-				updates["hasNewClassroom"] = classroomData["title"];
-				db.ref(dbName + "/users/" + uid).update(updates).then(function() {
-					_sendPushNotification("", uid, "NEW: Classroom", "Hey you! Time to learn " + discipline + "!", 1);
+				
+				// Get the first question
+				var qid = Object.keys(classroomData["questions"])[0];
+				db.ref(dbName + "/questions/" + discipline + "/" + qid + "/question").once("value", function(questionSnap) {
+					var questionText = questionSnap.val();
+					var classUpdates = {};
+					var discipline = classroomData["title"];
+					classUpdates["discipline"] = discipline;
+					classUpdates["questionNum"] = 1;
+					classUpdates["questionImage"] = classroomData["image"];
+					classUpdates["questionText"] = questionText;
+					classUpdates["hasUpdates"] = true;
+					classUpdates["timeReplied"] = currentTimestamp;
+					updates["classrooms/" + cid] = classUpdates;
+					// Set next classroom to null, and has new classrooms to true
+					updates["nextClassroom"] = null;
+					updates["hasNewClassroom"] = classroomData["title"];
+					db.ref(dbName + "/users/" + uid).update(updates).then(function() {
+						_sendPushNotification("", uid, "NEW: Classroom", "Hey you! Time to learn " + discipline + "!", 1);
+					});
 				});
 			});
 		});
@@ -619,6 +638,7 @@ function assignNewQuestion(completed) {
 					var currentTimestamp = Date.now();
 					var questionNum = qidsAsked.length + 1;
 					var questionImage = questionData["image"];
+					var questionText = questionData["question"];
 
 					db.ref(dbName + "/classrooms/" + cid + "/questions/" + qid).set(currentTimestamp).then(function() {
 						classmateUids.forEach(function(classmateUid) {
@@ -629,6 +649,7 @@ function assignNewQuestion(completed) {
 								var classUpdates = {};
 								classUpdates["questionNum"] = questionNum;
 								classUpdates["questionImage"] = questionImage;
+								classUpdates["questionText"] = questionText;
 								classUpdates["hasUpdates"] = true;
 								classUpdates["timeReplied"] = Date.now();
 								db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates).then(function() {
@@ -647,6 +668,7 @@ function assignNewQuestion(completed) {
 	})
 }
 
+assignSuperlatives();
 /**
  * KEY FUNCTION: Assigns superlatives to classrooms after 1 week.
  * TO BE RUN: :10 and :40 each hour on system time.
@@ -661,8 +683,8 @@ function assignSuperlatives() {
 	var marginOfTime = 1 * 24 * 60 * 60 * 1000; // 1 day of margin
 	db.ref(dbName + "/classrooms")
 	.orderByChild("timeCreated") // If time created is about a week ago from current time
-	.startAt(currentTimestamp - oneWeek - marginOfTime)
-	.endAt(currentTimestamp - oneWeek + marginOfTime)
+	// .startAt(currentTimestamp - oneWeek - marginOfTime)
+	// .endAt(currentTimestamp - oneWeek + marginOfTime)
 	.once("value", function(snap) {
 		snap.forEach(function(data) {
 			var classroom = data.val();
