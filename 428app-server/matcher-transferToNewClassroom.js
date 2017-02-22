@@ -6,7 +6,7 @@
 
 var admin = require("firebase-admin");
 admin.initializeApp({
-  credential: admin.credential.cert("./app-abdf9-firebase-adminsdk-rsdcc-8311b31e51.json"),
+  credential: admin.credential.cert("/home/ec2-user/428app-server/428app-server/app-abdf9-firebase-adminsdk-rsdcc-8311b31e51.json"),
   databaseURL: "https://app-abdf9.firebaseio.com"
 });
 console.log("matcher-transferToNewClassroom.js is running...");
