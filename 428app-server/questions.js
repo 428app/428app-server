@@ -15,15 +15,15 @@ var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "La
 var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Likely to be arrested", "Most dramatic", "Richest right now", "Party animal", "Most lovable", "Future billionaire", "Boyfriend material", "Prime minister to-be", "Trump's best friend", "Sex god", "FBI agent", "Actually a celebrity", "Kim K.'s next BF", "Cat lover", "Most hipster", "Worst driver", "Selfie King/Queen", "Most innocent", "Drunkard"];
 
 // NOTE: This will be /test_db when you're testing
-var dbName = "/real_db"
+var dbName = "/test_db"
 var db = admin.database();
 
 // EXAMPLE: Write a question
-// writeQuestion("Biology", 
-// 	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fbiology%2Fbiology22.jpg?alt=media&token=e2fa0485-980e-4541-8c48-1d2295fa03e8", 
-// 	"Remember when you first learned about plants and met this monster of an English word you could never quite spell - Photosynthesis? Do you remember how it works? Name the parts involved in photosynthesis.", 
-// 	"https://www.youtube.com/embed/sQK3Yr4Sc_k", 
-// 	true, "https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fbiology%2Fbiology22.jpg?alt=media&token=e2fa0485-980e-4541-8c48-1d2295fa03e8")
+writeQuestion("Computer Science", 
+	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fphysics%2Fphysics22.jpg?alt=media&token=bd13fdf9-dfb3-4347-bc90-4c6e9853648a", 
+	"IBM developed a supercomputer that could beat a grandmaster in Jeopardy. How does it work? Can we use a supercomputer to help us find a partner?", 
+	"https://www.youtube.com/embed/_Xcmh1LQB9I", 
+	true, "")
 // 
 // EXAMPLE: Write a batch of Physics questions
 // writeQuestionsFromTSVFile("/Users/leonardloo/Desktop/428/428-questions/physics.tsv");
@@ -32,6 +32,13 @@ var db = admin.database();
 // writeDidYouKnow("Astronomy", "https://www.youtube.com/embed/HeGPn5zxegY")
 
 // assignAllQuestionsToAllUsers();
+
+function transferAllQuestionsFromTestToReal() {
+	// NOTE: This DOES NOT transfer over qid linkages. Only run this when there are no classrooms!
+	db.ref("test_db/questions/").once("value", function(snapshot) {
+		db.ref("real_db/questions/").set(snapshot.val());
+	})
+}
 
 /**
  * Returns a random did you know from the specified discipline, to be shown in Superlatives.

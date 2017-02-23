@@ -172,12 +172,13 @@ function _addRandomDaysToTimestamp(timestamp) {
 }
 
 /**
- * Returns the UNIX timestamp of the upcoming 4:28pm according to the specified timezone.
- * This method is used to assign classroom to a group of new users.
+ * Returns the UNIX timestamp of the upcoming 4:32pm according to the specified timezone.
+ * This method is used to assign classroom to a group of new users. Note that new classroom is assigned 
+ * at 4:32pm and not 4:28pm, because it should come after a question at 4:28pm.
  * @param {Double] inputTimezone 		Time zone
  * @return {Double} UNIX timestamp
  */
-function _nextDay428(inputTimezone) {
+function _nextDay432(inputTimezone) {
 	var nextDate = new Date();
 	var currentTimezone = (-nextDate.getTimezoneOffset()) / 60.0;
 	var offset = currentTimezone - inputTimezone;
@@ -185,7 +186,8 @@ function _nextDay428(inputTimezone) {
 	if ((nextDate.getHours() >= 16 && nextDate.getMinutes() >= 28) ||(nextDate.getHours() >= 17)) {
 	  nextDate.setDate(nextDate.getDate() + 1);
 	}
-	nextDate.setHours(16, 28, 0, 0);
+	// NOTE: 4
+	nextDate.setHours(16, 32, 0, 0);
 	var timeBeforeOffset = nextDate.getTime();
 
 	// Add timezone offset
@@ -204,7 +206,7 @@ function _assignClassroom(classmates, discipline) {
 	var timezone = classmates[0]["timezone"];
 	
 	// Time created is defaulted to the next 4:28pm in this timezone
-	var timeCreated = _nextDay428(timezone); // No classroom previously as classmates are new users
+	var timeCreated = _nextDay432(timezone); // No classroom previously as classmates are new users
 	if (timeOfNextClassroom != undefined) { 
 		// Time is not current time, but future time to create this classroom, 
 		// which is 1 week after a classmate's last time joining a classroom
@@ -288,7 +290,7 @@ function _addToAvailableClassroom(classmate) {
 	var isNewUser = classmate["timeOfNextClassroom"] == null;
 	if (isNewUser) {
 		// For new users, need to assign classrooms of the next day 428, OR just don't assign if cannot find
-		timestampToUse = _nextDay428(timezone);
+		timestampToUse = _nextDay432(timezone);
 	}
 	
 	// For each of these disciplines, look in classrooms that have not been assigned yet
