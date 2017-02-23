@@ -124,7 +124,7 @@ function _randomQuestionOfDiscipline(discipline, completed) {
 			if (i == random_index) {
 				var data = values[key];
 				data["qid"] = key;
-				completed(data);
+				completed({"question": data, "discipline": discipline});
 				return;
 			}
 			i++;
@@ -151,7 +151,7 @@ function _randomDidYouKnowOfDiscipline(discipline, completed) {
 		var values = snap.val();
 		for (key in values) {
 			if (i == random_index) {
-				completed(key);
+				completed({"did": key, "discipline": discipline});
 				return;
 			}
 			i++;
@@ -217,12 +217,16 @@ function _assignClassroom(classmates, discipline) {
 	}
 
 	// Pick a first question for this new classroom
-	_randomQuestionOfDiscipline(discipline, function(question) {
+	_randomQuestionOfDiscipline(discipline, function(questionAndDiscipline) {
+		var question = questionAndDiscipline["question"];
+		var discipline = questionAndDiscipline["discipline"];
 		if (question == null) {
 			console.log("[Error] Critical error in assigning question for classroom of discipline: " + discipline);
 			return;
 		}
-		_randomDidYouKnowOfDiscipline(discipline, function(did) {
+		_randomDidYouKnowOfDiscipline(discipline, function(didAndDiscipline) {
+			var did = didAndDiscipline["did"];
+			var discipline = didAndDiscipline["discipline"];
 			if (did == null) {
 				console.log("[Error] Critical error in assigning didyouknow for classroom of discipline: " + discipline);
 				return;
@@ -580,20 +584,23 @@ function transferToNewClassroom() {
 				var discipline = classroomData["title"];
 				// Get the first question
 				var qid = Object.keys(classroomData["questions"])[0];
-				db.ref(dbName + "/questions/" + discipline + "/" + qid + "/question").once("value", function(questionSnap) {
-					var questionText = questionSnap.val();
+				db.ref(dbName + "/questions/" + discipline + "/" + qid).once("value", function(questionSnap) {
+					var qData = questionSnap.val();
+					var questionText = qData["question"];
+					var questionShareImage = qData["shareImage"];
 					var classUpdates = {};
 					var discipline = classroomData["title"];
 					classUpdates["discipline"] = discipline;
 					classUpdates["questionNum"] = 1;
 					classUpdates["questionImage"] = classroomData["image"];
 					classUpdates["questionText"] = questionText;
+					classUpdates["questionShareImage"] = questionShareImage;
 					classUpdates["hasUpdates"] = true;
 					classUpdates["timeReplied"] = currentTimestamp;
 					updates["classrooms/" + cid] = classUpdates;
 					// Set next classroom to null, and has new classrooms to true
 					updates["nextClassroom"] = null;
-					updates["hasNewClassroom"] = classroomData["title"];
+					updates["hasNewClassroom"] = discipline;
 					db.ref(dbName + "/users/" + uid).update(updates).then(function() {
 						_sendPushNotification("", uid, "NEW: Classroom", "Hey you! Time to learn " + discipline + "!", 1);
 					});
@@ -644,12 +651,14 @@ function assignNewQuestion(completed) {
 				for (var qid in questionsAvailable) {
 
 					if (qidsAsked.indexOf(qid) >= 0) continue; // Question asked before, skip
+					
 					// Assign this question
 					var questionData = questionsAvailable[qid];
 					var currentTimestamp = Date.now();
 					var questionNum = qidsAsked.length + 1;
 					var questionImage = questionData["image"];
 					var questionText = questionData["question"];
+					var questionShareImage = questionData["shareImage"];
 
 					db.ref(dbName + "/classrooms/" + cid + "/questions/" + qid).set(currentTimestamp).then(function() {
 						classmateUids.forEach(function(classmateUid) {
@@ -661,6 +670,7 @@ function assignNewQuestion(completed) {
 								classUpdates["questionNum"] = questionNum;
 								classUpdates["questionImage"] = questionImage;
 								classUpdates["questionText"] = questionText;
+								classUpdates["questionShareImage"] = questionShareImage;
 								classUpdates["hasUpdates"] = true;
 								classUpdates["timeReplied"] = Date.now();
 								db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates).then(function() {
@@ -670,7 +680,8 @@ function assignNewQuestion(completed) {
 							})
 						});
 					});
-					// This return is important to return from the loop of questions after done
+
+					// This return is important to return from the loop of classes after question sent out
 					return;
 				}
 				// End of one classroom, move on to next classroom to assign new question
