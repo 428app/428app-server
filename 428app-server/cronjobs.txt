@@ -1,13 +1,17 @@
 # Check for mail here: vim /var/spool/mail/ec2-user
 
 # Classroom matches generated every 5 minutes
-*/5 * * * * pkill -f matcher-generateClassrooms.js ; /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-generateClassrooms.js
+4,9,14,19,24,29,34,39,44,49,54,59 * * * * pkill -f matcher-generateClassrooms.js
+0,5,10,15,20,25,30,35,40,45,50,55 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-generateClassrooms.js
 
 # Every :28 and :58 system time assign classrooms
-28,58 * * * * pkill -f matcher-transferToNewClassroom.js ; /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-transferToNewClassroom.js
+27,57 * * * * pkill -f matcher-transferToNewClassroom.js
+28,58 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-transferToNewClassroom.js
 
 # Every :28 and :58 assign new question
-28,58 * * * * pkill -f matcher-assignNewQuestion.js ; /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-assignNewQuestion.js
+27,57 * * * * pkill -f matcher-assignNewQuestion.js
+28,58 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-assignNewQuestion.js
 
 # Superlatives can be assigned once an hour at a different time from all the rest to reduce server load
-8 * * * * pkill -f matcher-assignSuperlatives.js ; /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-assignSuperlatives.js
+7 * * * * pkill -f matcher-assignSuperlatives.js
+8 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-assignSuperlatives.js
