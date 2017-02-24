@@ -28,7 +28,6 @@ var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "La
 var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Likely to be arrested", "Most dramatic", "Richest right now", "Party animal", "Most lovable", "Future billionaire", "Boyfriend material", "Prime minister to-be", "Trump's best friend", "Sex god", "FBI agent", "Actually a celebrity", "Kim K.'s next BF", "Cat lover", "Most hipster", "Worst driver", "Selfie King/Queen", "Most innocent", "Drunkard"];
 
 // Temporary
-var DAYS_TO_GENERATE_CLASSROOM = 1 // TODO: New classroom every day, change back to random
 var DAYS_TO_ASSIGN_SUPERLATIVES = 1 // TODO: Change back to 7
 
 /**
@@ -171,7 +170,7 @@ function _randomDidYouKnowOfDiscipline(discipline, completed) {
 function _addRandomDaysToTimestamp(timestamp) {
 	var oneDay = 24 * 60 * 60 * 1000;
 	var random = Math.round((Math.random() * 3)) + 5
-	return timestamp + (DAYS_TO_GENERATE_CLASSROOM * oneDay) // TODO: Change to random * oneDay
+	return timestamp + (0 * oneDay) // TODO: Change to random * oneDay
 }
 
 /**
@@ -215,9 +214,10 @@ function _assignClassroom(classmates, discipline) {
 		timeCreated = _addRandomDaysToTimestamp(timeCreated);
 	}
 	
-	var memberHasVoted = {};
+
+	var classmateUids = [];
 	for (var i = 0; i < classmates.length; i++) {
-		memberHasVoted[classmates[i]["uid"]] = 0;
+		classmateUids.push(classmates[i]["uid"]);
 	}
 
 	// Pick a first question for this new classroom
@@ -245,7 +245,7 @@ function _assignClassroom(classmates, discipline) {
 				image: question["image"], // Image of classroom is image of question
 				timeCreated: timeCreated, // This time created is not now, but the time the classroom will be transferred
 				timezone: timezone,
-				memberHasVoted: memberHasVoted,
+				memberHasVoted: null, // To assign members to classroom during transfer
 				questions: questions,
 				superlatives: null, // No superlatives yet
 				didYouKnow: did
@@ -254,8 +254,9 @@ function _assignClassroom(classmates, discipline) {
 				var updates = {};
 				updates["/nextClassroom"] = cid;
 				updates["/timeOfNextClassroom"] = timeCreated;
-				for (uid in memberHasVoted) {
-					db.ref(dbName + "/users/" + uid).update(updates);
+				for (var k = 0; k < classmateUids.length; k++) {
+					var classmateUid = classmateUids[k];
+					db.ref(dbName + "/users/" + classmateUid).update(updates);
 				}
 			});
 		});
@@ -328,12 +329,6 @@ function _addToAvailableClassroom(classmate) {
 
 			// Found the right classroom!
 			classroomFound = true;
-
-			// Modify classroom
-			var uid = classmate["uid"];
-			var classUpdates = {};
-			classUpdates["/memberHasVoted/" + uid] = 0;
-			db.ref(dbName + "/classrooms/" + cid).update(classUpdates);
 
 			// Modify user
 			var userUpdates = {};
@@ -546,11 +541,12 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
  * 1) Add nextClassroom to classrooms and set nextClassroom to null, 
  * 2) Set hasNewClassroom to classroom title, 
+ * 3) Add user to memberHasVoted in classroom
  * FOR TESTING: Change margin of time to 999999 * 60 * 1000
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var marginOfTime = 1 * 60 * 1000; // 1min leeway
+	var marginOfTime = 999999 * 60 * 1000; // 1min leeway
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
 	.startAt(currentTimestamp - marginOfTime)
@@ -581,20 +577,29 @@ function transferToNewClassroom() {
 					var qData = questionSnap.val();
 					var questionText = qData["question"];
 					var questionShareImage = qData["shareImage"];
-					var classUpdates = {};
+					var userClassUpdates = {};
 					var discipline = classroomData["title"];
-					classUpdates["discipline"] = discipline;
-					classUpdates["questionNum"] = 1;
-					classUpdates["questionImage"] = classroomData["image"];
-					classUpdates["questionText"] = questionText;
-					classUpdates["questionShareImage"] = questionShareImage;
-					classUpdates["hasUpdates"] = true;
-					classUpdates["timeReplied"] = currentTimestamp;
-					updates["classrooms/" + cid] = classUpdates;
-					// Set next classroom to null, and has new classrooms to true
-					updates["nextClassroom"] = null;
-					updates["hasNewClassroom"] = discipline;
-					db.ref(dbName + "/users/" + uid).update(updates).then(function() {
+
+					// Do a multi-path update:
+
+					// Update user fields
+					userClassUpdates["discipline"] = discipline;
+					userClassUpdates["questionNum"] = 1;
+					userClassUpdates["questionImage"] = classroomData["image"];
+					userClassUpdates["questionText"] = questionText;
+					userClassUpdates["questionShareImage"] = questionShareImage;
+					userClassUpdates["hasUpdates"] = true;
+					userClassUpdates["timeReplied"] = currentTimestamp;
+					updates["/users/" + uid + "/classrooms/" + cid] = userClassUpdates;
+
+					// Set user's next classroom to null, and has new classrooms to classroom title
+					updates["/users/" + uid + "/nextClassroom"] = null;
+					updates["/users/" + uid + "/hasNewClassroom"] = discipline;
+
+					// Update classroom memberHasVoted
+					updates["/classrooms/" + cid + "/memberHasVoted/" + uid] = 0
+
+					db.ref(dbName).update(updates).then(function() {
 						_sendPushNotification("", uid, "NEW: Classroom", "Hey you! Time to learn " + discipline + "!", 1);
 					});
 				});
@@ -733,5 +738,47 @@ function assignSuperlatives() {
 			classUpdates["superlatives"] = superlativesDict;
 			db.ref(dbName + "/classrooms/" + cid).update(classUpdates);
 		});
+	});
+}
+
+/**
+ * KEY FUNCTION: Swap users' next classrooms randomly.
+ * TO BE RUN: :29 and :59, 29 minutes before users get their classrooms
+ * Simply get all users who are getting their classrooms in the next 30 minutes, shuffle them, 
+ * and iteratively swap their nextClassrooms.
+ * FOR TESTING: Change margin of time to 999999
+ */
+function swapClassrooms() {
+	var currentTimestamp = Date.now();
+	var twentynineminutes = 29 * 60 * 1000;
+	var marginOfTime = 2 * 60 * 1000; // 2min leeway
+	db.ref(dbName + "/users")
+	.orderByChild("timeOfNextClassroom")
+	.startAt(currentTimestamp + twentynineminutes - marginOfTime)
+	.endAt(currentTimestamp + twentynineminutes + marginOfTime).once("value", function(snap) {
+		
+		// Remove users who have null nextClassroom
+		var users = [];
+		snap.forEach(function(userSnap) {
+			var user = userSnap.val();
+			var uid = userSnap.key;
+			if (user["nextClassroom"] == undefined || user["nextClassroom"] == null) {
+				return;
+			}
+			users.push({"uid": uid, "nextClassroom": user["nextClassroom"]});
+		});
+
+		// Shuffle users
+		var shuffledUsers = _shuffleArray(users);
+
+		var n = shuffledUsers.length;
+
+		// Swap users' classrooms
+		for (var i = 0; i < n/2; i++) {
+			var firstUser = shuffledUsers[i];
+			var secondUser = shuffledUsers[n - i - 1];
+			db.ref(dbName + "/users/" + firstUser["uid"] + "/nextClassroom").set(secondUser["nextClassroom"]);
+			db.ref(dbName + "/users/" + secondUser["uid"] + "/nextClassroom").set(firstUser["nextClassroom"]);
+		}
 	});
 }

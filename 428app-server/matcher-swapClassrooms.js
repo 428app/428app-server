@@ -9,7 +9,7 @@ admin.initializeApp({
   credential: admin.credential.cert("/home/ec2-user/428app-server/428app-server/app-abdf9-firebase-adminsdk-rsdcc-8311b31e51.json"),
   databaseURL: "https://app-abdf9.firebaseio.com"
 });
-console.log("matcher-transferToNewClassroom.js is running...");
+console.log("matcher-swapClassrooms.js is running...");
 
 // NOTE: This will be /test_db when you're testing
 var dbName = "/real_db"
@@ -24,7 +24,7 @@ var DAYS_TO_ASSIGN_SUPERLATIVES = 1 // TODO: Change back to 7
 
 /********************************************************************************************/
 // MAKE THE CALL HERE
-transferToNewClassroom();
+swapClassrooms();
 /********************************************************************************************/
 
 /**
