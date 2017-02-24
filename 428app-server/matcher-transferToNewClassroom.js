@@ -178,16 +178,27 @@ function _addRandomDaysToTimestamp(timestamp) {
  * @return {Double} UNIX timestamp
  */
 function _nextDay428(inputTimezone) {
-	var nextDate = new Date();
-	var currentTimezone = (-nextDate.getTimezoneOffset()) / 60.0;
+	var serverDate = new Date();
+	var currentTimezone = (-serverDate.getTimezoneOffset()) / 60.0;
 	var offset = currentTimezone - inputTimezone;
-	  
-	if ((nextDate.getHours() >= 16 && nextDate.getMinutes() >= 28) ||(nextDate.getHours() >= 17)) {
-	  nextDate.setDate(nextDate.getDate() + 1);
+
+	var hasHalfHourOffset = offset % 1 != 0
+	var hourOffset = Math.floor(offset);
+	
+	// Set server time to input time
+	var inputHour = serverDate.getHours() - hourOffset;
+	var inputMinutes = hasHalfHourOffset ? serverDate.getMinutes() - 30 : serverDate.getMinutes();
+	inputHour = inputMinutes < 0 ? inputHour - 1 : inputHour;
+	inputMinutes = (60 - (-inputMinutes)) % 60;
+	
+	// If time exceeds 4:28pm in input timezone, then add a day
+	if ((inputHour >= 16 && inputMinutes >= 28) ||(inputHour >= 17)) {
+	  serverDate.setDate(serverDate.getDate() + 1);
 	}
-	// NOTE: 4
-	nextDate.setHours(16, 28, 0, 0);
-	var timeBeforeOffset = nextDate.getTime();
+
+	// Set 4:28pm on server time zone, but add offset below
+	serverDate.setHours(16, 28, 0, 0);
+	var timeBeforeOffset = serverDate.getTime();
 
 	// Add timezone offset
 	return timeBeforeOffset + offset * 60 * 60 * 1000;
@@ -210,7 +221,6 @@ function _assignClassroom(classmates, discipline) {
 		// Here is a group of users who already have a classroom
 		timeCreated = _addRandomDaysToTimestamp(timeCreated);
 	}
-	
 
 	var classmateUids = [];
 	for (var i = 0; i < classmates.length; i++) {
@@ -247,9 +257,10 @@ function _assignClassroom(classmates, discipline) {
 				superlatives: null, // No superlatives yet
 				didYouKnow: did
 			}).then(function() {
-				// Modify classmates' nextClassroom and dateOfLastClassroom
+				// Modify classmates' nextClassroom, nextClassroomDiscipline and timeOfNextClassroom
 				var updates = {};
 				updates["/nextClassroom"] = cid;
+				updates["/nextClassroomDiscipline"] = discipline;
 				updates["/timeOfNextClassroom"] = timeCreated;
 				for (var k = 0; k < classmateUids.length; k++) {
 					var classmateUid = classmateUids[k];
@@ -330,6 +341,7 @@ function _addToAvailableClassroom(classmate) {
 			// Modify user
 			var userUpdates = {};
 			userUpdates["/nextClassroom"] = cid;
+			userUpdates["/nextClassroomDiscipline"] = d;
 			userUpdates["/timeOfNextClassroom"] = classroom["timeCreated"];
 			db.ref(dbName + "/users/" + uid).update(userUpdates);
 		});
@@ -343,6 +355,7 @@ function _ungenerateClassrooms() {
 			var uid = userData.key;
 			db.ref(dbName + "/users/" + uid + "/timeOfNextClassroom").set(null);
 			db.ref(dbName + "/users/" + uid + "/nextClassroom").set(null);
+			db.ref(dbName + "/users/" + uid + "/nextClassroomDiscipline").set(null);
 			db.ref(dbName + "/users/" + uid + "/hasNewClassroom").set(null);
 		});
 	});
@@ -536,7 +549,7 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
  * KEY FUNCTION: Transfers users to their new classrooms when 4:28pm arrives.
  * TO BE RUN: :32 and :02 each hour on system time: Have to be run after assignQuestion.
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
- * 1) Add nextClassroom to classrooms and set nextClassroom to null, 
+ * 1) Add nextClassroom to classrooms and set nextClassroom and nextClassroomDiscipline to null, 
  * 2) Set hasNewClassroom to classroom title, 
  * 3) Add user to memberHasVoted in classroom
  * FOR TESTING: Change margin of time to 999999 * 60 * 1000
@@ -591,6 +604,7 @@ function transferToNewClassroom() {
 
 					// Set user's next classroom to null, and has new classrooms to classroom title
 					updates["/users/" + uid + "/nextClassroom"] = null;
+					updates["/users/" + uid + "/nextClassroomDiscipline"] = null;
 					updates["/users/" + uid + "/hasNewClassroom"] = discipline;
 
 					// Update classroom memberHasVoted
@@ -759,23 +773,49 @@ function swapClassrooms() {
 		snap.forEach(function(userSnap) {
 			var user = userSnap.val();
 			var uid = userSnap.key;
-			if (user["nextClassroom"] == undefined || user["nextClassroom"] == null) {
+			if (user["nextClassroom"] == undefined || user["nextClassroomDiscipline"] == undefined) {
 				return;
 			}
-			users.push({"uid": uid, "nextClassroom": user["nextClassroom"]});
+			user["uid"] = uid;
+			users.push(user);
 		});
 
 		// Shuffle users
 		var shuffledUsers = _shuffleArray(users);
 
 		var n = shuffledUsers.length;
+		
+		// Run n_sim number of simulations of shuffling and swapping
+		var n_sim = 10;
+		for (var k = 0; k < n_sim; k++) {
+			shuffledUsers = _shuffleArray(shuffledUsers);
+			for (var i = 0; i < n/2; i++) {
+				var firstUser = shuffledUsers[i];
+				var secondUser = shuffledUsers[n - i - 1];
+				
+				// Only perform swap if both users have not taken the new classroom's discipline
+				if (_userHasDiscipline(firstUser, secondUser["nextClassroomDiscipline"]) || 
+					_userHasDiscipline(secondUser, firstUser["nextClassroomDiscipline"])) {
+					continue;
+				}
 
-		// Swap users' classrooms
-		for (var i = 0; i < n/2; i++) {
-			var firstUser = shuffledUsers[i];
-			var secondUser = shuffledUsers[n - i - 1];
-			db.ref(dbName + "/users/" + firstUser["uid"] + "/nextClassroom").set(secondUser["nextClassroom"]);
-			db.ref(dbName + "/users/" + secondUser["uid"] + "/nextClassroom").set(firstUser["nextClassroom"]);
+				// Perform the swap
+				var temp = firstUser["nextClassroom"];
+				var tempDiscipline = firstUser["nextClassroomDiscipline"];
+				firstUser["nextClassroom"] = secondUser["nextClassroom"];
+				firstUser["nextClassroomDiscipline"] = secondUser["nextClassroomDiscipline"];
+				secondUser["nextClassroom"] = temp;
+				secondUser["nextClassroomDiscipline"] = tempDiscipline;
+			}
+		}
+
+		// Update with new classrooms
+		for (var i = 0; i < n; i++) {
+			var user = shuffledUsers[i];
+			var updates = {};
+			updates["/nextClassroom"] = user["nextClassroom"];
+			updates["/nextClassroomDiscipline"] = user["nextClassroomDiscipline"];
+			db.ref(dbName + "/users/" + user["uid"]).update(updates);
 		}
 	});
 }
