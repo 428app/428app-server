@@ -1,8 +1,8 @@
 # Check for mail here: vim /var/spool/mail/ec2-user
 
-# Classrooms must be created before transfering them at :32 and :02
-23,53 * * * * pkill -f matcher-generateClassrooms.js
-25,55 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-generateClassrooms.js
+# Classrooms generated every 5 minutes
+*/5 * * * * pkill -f matcher-generateClassrooms.js
+*/5 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-generateClassrooms.js
 
 # Every :32 and :02 system time assign classrooms
 # Have to assign classroom after assigning new question so user does not get two questions in a row with new classroom

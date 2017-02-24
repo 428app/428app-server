@@ -19,11 +19,11 @@ var dbName = "/test_db"
 var db = admin.database();
 
 // EXAMPLE: Write a question
-writeQuestion("Computer Science", 
-	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fphysics%2Fphysics22.jpg?alt=media&token=bd13fdf9-dfb3-4347-bc90-4c6e9853648a", 
-	"IBM developed a supercomputer that could beat a grandmaster in Jeopardy. How does it work? Can we use a supercomputer to help us find a partner?", 
-	"https://www.youtube.com/embed/_Xcmh1LQB9I", 
-	true, "")
+// writeQuestion("Computer Science", 
+// 	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fphysics%2Fphysics22.jpg?alt=media&token=bd13fdf9-dfb3-4347-bc90-4c6e9853648a", 
+// 	"What are databases? What types of databases are there? Discuss how 428 stores your data in our database.", 
+// 	"https://www.youtube.com/embed/gfT7EGibry0", 
+// 	true, "")
 // 
 // EXAMPLE: Write a batch of Physics questions
 // writeQuestionsFromTSVFile("/Users/leonardloo/Desktop/428/428-questions/physics.tsv");

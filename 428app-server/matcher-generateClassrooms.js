@@ -205,12 +205,11 @@ function _assignClassroom(classmates, discipline) {
 	var timeOfNextClassroom = classmates[0]["timeOfNextClassroom"];
 	var timezone = classmates[0]["timezone"];
 	
-	// Time created is defaulted to the next 4:28pm in this timezone
+	// Time created is defaulted to the next 4:32pm in this timezone
 	var timeCreated = _nextDay432(timezone); // No classroom previously as classmates are new users
 	if (timeOfNextClassroom != undefined) { 
-		// Time is not current time, but future time to create this classroom, 
-		// which is 1 week after a classmate's last time joining a classroom
-		timeCreated = _addRandomDaysToTimestamp(timeOfNextClassroom);
+		// Here is a group of users who already have a classroom
+		timeCreated = _addRandomDaysToTimestamp(timeCreated);
 	}
 	
 	var memberHasVoted = {};
@@ -361,7 +360,7 @@ Below are they key functions that are run on cron jobs on the server.
 
 /**
  * KEY FUNCTION: Algorithm that generates classrooms for users
- * TO BE RUN: :10 and :40 each hour on system time.
+ * TO BE RUN: Run every 5 minutes to maximize chances of everyone having a classroom.
  * Right now, the algorithm is very primitive and mainly matches 4 or more (most of the time 7) 
  * classmates to one classroom. The classmates will be from the timezone and will receive 
  * their new classroom exactly after a week (or less, though exactly one week most of the time). 
@@ -371,15 +370,13 @@ Below are they key functions that are run on cron jobs on the server.
  * 1) If two users have been in a classroom before, should not match again
  * 2) Facebook friends should not match with one another
  * 3) Take into account firstReplied of users to make sure every classroom has at least one user that likes to start conversations
+ * 4) Use maximum bipartite graph matching algorithm to optimize matching of users to classrooms
  */
 function generateClassrooms() {
 	db.ref(dbName + "/users").once("value", function(usersSnap) {
 		
 		/** 
-		 * Break users down by timezone, of format "<timestamp of next classroom joined or 0 if none>/<timezone Int>, i.e. 0/8, 1483892880000/-5"
-		 * This format is crucial as it allows us to sort by ascending order of this format. 
-		 * This allows us to assign users that have no classrooms yet, before users who have had classrooms a long time ago, 
-		 * and then users who only just got their classrooms.
+		 * Break users down by timezone. Note that new users get grouped together by appending "new" to the timezone key.
 		 */
 
 		// First group users from the same timezone, and those who will get a classroom at the next same time together
@@ -404,25 +401,16 @@ function generateClassrooms() {
 					return;
 				}
 
-				// Group this user into the right timezone, and time of next classroom
-				var timezone = user["timezone"];
-				
-				// 0 is used because it will appear in front of any timestamp lexicographically
-				// We want to process users with no classroom yet first, so we use 0
-				var timeOfNextClassroom = 0
-				if (user["timeOfNextClassroom"] != undefined && user["timeOfNextClassroom"] != null) {
-					timeOfNextClassroom = user["timeOfNextClassroom"];
+				// Group this user into the right timezone
+				var timezone = "" + user["timezone"];
+				if (user["timeOfNextClassroom"] == undefined) { // New users are grouped together
+					timezone += "new"
 				}
-				var format = timeOfNextClassroom + "/" + timezone;
-
-				// Group classmates by timezone
-				var classmates = usersByTimezone[format] == undefined ? [] : usersByTimezone[format]
+				var classmates = usersByTimezone[timezone] == undefined ? [] : usersByTimezone[timezone]
 				classmates.push(user);
-				usersByTimezone[format] = classmates;
-
+				usersByTimezone[timezone] = classmates;
 			});
 
-			
 			// Most classrooms will have 7 classmates, but can be any number more than or equal to 4
 			var IDEAL_CLASS_SIZE = 7
 			var MIN_CLASS_SIZE = 4
@@ -551,7 +539,7 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
 
 /**
  * KEY FUNCTION: Transfers users to their new classrooms when 4:28pm arrives.
- * TO BE RUN: :28 and :58 each hour on system time.
+ * TO BE RUN: :32 and :02 each hour on system time: Have to be run after assignQuestion.
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
  * 1) Add nextClassroom to classrooms and set nextClassroom to null, 
  * 2) Set hasNewClassroom to classroom title, 
@@ -635,6 +623,13 @@ function assignNewQuestion(completed) {
 				var classroom = classData.val();
 				var cid = classData.key;
 				var classmateUids = Object.keys(classroom["memberHasVoted"]);
+
+				// First check if the classroom is already created for users. If it is not yet created, return.
+				var classTimeCreated = classroom["timeCreated"];
+				if (classTimeCreated != null && Date.now() < classTimeCreated) {
+					// Class not created yet, don't push new question or users will get 2 first questions
+					return;
+				}
 				
 				// Check if it is time to give new question
 				var classTimezone = classroom["timezone"];
@@ -694,7 +689,7 @@ function assignNewQuestion(completed) {
 
 /**
  * KEY FUNCTION: Assigns superlatives to classrooms after 1 week.
- * TO BE RUN: :10 and :40 each hour on system time.
+ * TO BE RUN: :08 every hour.
  * If classroom's timeCreated is 1 week before current time, then do the following steps:
  * Step 1) Randomly pick 4 superlatives from all superlatives
  * Step 2) For each superlative: initiate all uids and number of votes to 0
