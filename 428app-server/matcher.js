@@ -31,7 +31,6 @@ var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best p
 var DAYS_TO_GENERATE_CLASSROOM = 1 // TODO: New classroom every day, change back to random
 var DAYS_TO_ASSIGN_SUPERLATIVES = 1 // TODO: Change back to 7
 
-
 /**
  * Checks if a user has already been in a classroom of a certain discipline, or if user is that discipline.
  * Used to ensure users do not get assigned the same classroom previously assigned.
@@ -182,7 +181,7 @@ function _addRandomDaysToTimestamp(timestamp) {
  * @param {Double] inputTimezone 		Time zone
  * @return {Double} UNIX timestamp
  */
-function _nextDay432(inputTimezone) {
+function _nextDay428(inputTimezone) {
 	var nextDate = new Date();
 	var currentTimezone = (-nextDate.getTimezoneOffset()) / 60.0;
 	var offset = currentTimezone - inputTimezone;
@@ -191,7 +190,7 @@ function _nextDay432(inputTimezone) {
 	  nextDate.setDate(nextDate.getDate() + 1);
 	}
 	// NOTE: 4
-	nextDate.setHours(16, 32, 0, 0);
+	nextDate.setHours(16, 28, 0, 0);
 	var timeBeforeOffset = nextDate.getTime();
 
 	// Add timezone offset
@@ -210,7 +209,7 @@ function _assignClassroom(classmates, discipline) {
 	var timezone = classmates[0]["timezone"];
 	
 	// Time created is defaulted to the next 4:32pm in this timezone
-	var timeCreated = _nextDay432(timezone); // No classroom previously as classmates are new users
+	var timeCreated = _nextDay428(timezone); // No classroom previously as classmates are new users
 	if (timeOfNextClassroom != undefined) { 
 		// Here is a group of users who already have a classroom
 		timeCreated = _addRandomDaysToTimestamp(timeCreated);
@@ -293,7 +292,7 @@ function _addToAvailableClassroom(classmate) {
 	var isNewUser = classmate["timeOfNextClassroom"] == null;
 	if (isNewUser) {
 		// For new users, need to assign classrooms of the next day 428, OR just don't assign if cannot find
-		timestampToUse = _nextDay432(timezone);
+		timestampToUse = _nextDay428(timezone);
 	}
 	
 	// For each of these disciplines, look in classrooms that have not been assigned yet
@@ -630,8 +629,8 @@ function assignNewQuestion(completed) {
 
 				// First check if the classroom is already created for users. If it is not yet created, return.
 				var classTimeCreated = classroom["timeCreated"];
-				if (classTimeCreated != null && Date.now() < classTimeCreated) {
-					// Class not created yet, don't push new question or users will get 2 first questions
+				if (classTimeCreated != null && Date.now() <= classTimeCreated + (5 * 60 * 1000)) { // Add 5 min buffer
+					// Class not created yet (or just created), don't push new question or users will get 2 first questions
 					return;
 				}
 				

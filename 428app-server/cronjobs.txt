@@ -1,11 +1,10 @@
 # Check for mail here: vim /var/spool/mail/ec2-user
 
-# Classrooms generated every 5 minutes
+# Classroom matches generated every 5 minutes
 */5 * * * * pkill -f matcher-generateClassrooms.js ; /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-generateClassrooms.js
 
-# Every :32 and :02 system time assign classrooms
-# Have to assign classroom after assigning new question so user does not get two questions in a row with new classroom
-32,02 * * * * pkill -f matcher-transferToNewClassroom.js ; /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-transferToNewClassroom.js
+# Every :28 and :58 system time assign classrooms
+28,58 * * * * pkill -f matcher-transferToNewClassroom.js ; /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-transferToNewClassroom.js
 
 # Every :28 and :58 assign new question
 28,58 * * * * pkill -f matcher-assignNewQuestion.js ; /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-assignNewQuestion.js
