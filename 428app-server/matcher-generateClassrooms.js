@@ -370,6 +370,7 @@ function _ungenerateClassrooms() {
 	db.ref(dbName + "/users").once("value", function(usersSnap) {
 		usersSnap.forEach(function(userData) {
 			var uid = userData.key;
+			db.ref(dbName + "/users/" + uid + "/classrooms").set(null);
 			db.ref(dbName + "/users/" + uid + "/timeOfNextClassroom").set(null);
 			db.ref(dbName + "/users/" + uid + "/nextClassroom").set(null);
 			db.ref(dbName + "/users/" + uid + "/nextClassroomDiscipline").set(null);
@@ -833,14 +834,18 @@ function swapClassrooms() {
 			var updates = {};
 			var originalCid = user["originalClassroom"];
 			var newCid = user["nextClassroom"];
+			
+			if (newCid == originalCid) {
+				// This step is important if not it will not work below as setting 
+				// newCid and originalCid override each other
+				continue;
+			}
+
 			updates["/users/" + uid + "/nextClassroom"] = newCid;
 			updates["/users/" + uid + "/nextClassroomDiscipline"] = user["nextClassroomDiscipline"];
+			updates["/classrooms/" + originalCid + "/memberHasVoted/" + uid] = null
 			updates["/classrooms/" + newCid + "/memberHasVoted/" + uid] = 0
-			db.ref(dbName).update(updates);
-
-			// Also remove presence in original classroom
-			db.ref(dbName + "/classrooms/" + originalCid + "/memberHasVoted/" + uid).remove();
-
+			db.ref(dbName).update(updates)
 		}
 	});
 }
