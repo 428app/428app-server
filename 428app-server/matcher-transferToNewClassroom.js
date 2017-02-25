@@ -88,12 +88,18 @@ function _availableDisciplines(completed) {
  * @return {Bool} true if user has taken all disciplines, false otherwise
  */
 function _userHasAllDisciplines(user, allDisciplines) {
+	var userDiscipline = user["discipline"];
+	if (userDiscipline == undefined) {
+		console.log("[Error] User does not have a discipline: " + user["uid"]);
+		return false;
+	}
 	var classrooms = user["classrooms"];
 	if (classrooms == undefined || classrooms == null) {
 		return false;
 	}
 	// Grab user disciplines from classrooms dict
 	var userDisciplines = [];
+	userDisciplines.push(user["discipline"]);
 	for (var cid in classrooms) {
 		var classDict = classrooms[cid];
 		userDisciplines.push(classDict["discipline"]);
@@ -166,14 +172,13 @@ function _randomDidYouKnowOfDiscipline(discipline, completed) {
  */
 function _addRandomDaysToTimestamp(timestamp) {
 	var oneDay = 24 * 60 * 60 * 1000;
-	var random = Math.round((Math.random() * 3)) + 5
+	var random = Math.round((Math.random() * 2)) + 5
 	return timestamp + (0 * oneDay) // TODO: Change to random * oneDay
 }
 
 /**
- * Returns the UNIX timestamp of the upcoming 4:32pm according to the specified timezone.
- * This method is used to assign classroom to a group of new users. Note that new classroom is assigned 
- * at 4:32pm and not 4:28pm, because it should come after a question at 4:28pm.
+ * Returns the UNIX timestamp of the upcoming 4:28pm according to the specified timezone.
+ * This method is used to assign classroom to a group of new users.
  * @param {Double] inputTimezone 		Time zone
  * @return {Double} UNIX timestamp
  */
@@ -207,7 +212,7 @@ function _nextDay428(inputTimezone) {
 /**
  * Assigns classmates to a classroom in Firebase. Used in generateClassrooms.
  * @param  {[JSON]} classmates      List of classmate JSON to be assigned
- * @param  {String} discipline 			String of discipline or classroomTitle
+ * @param  {String} discipline 		String of discipline or classroomTitle
  * @return {None} 
  */
 function _assignClassroom(classmates, discipline) {
@@ -215,10 +220,10 @@ function _assignClassroom(classmates, discipline) {
 	var timeOfNextClassroom = classmates[0]["timeOfNextClassroom"];
 	var timezone = classmates[0]["timezone"];
 	
-	// Time created is defaulted to the next 4:32pm in this timezone
+	// Time created is defaulted to the next 4:28pm in this timezone
 	var timeCreated = _nextDay428(timezone); // No classroom previously as classmates are new users
 	if (timeOfNextClassroom != undefined) { 
-		// Here is a group of users who already have a classroom
+		// Next classroom will be in 5-7 days after the next day 4:28pm for non-new users
 		timeCreated = _addRandomDaysToTimestamp(timeCreated);
 	}
 
@@ -343,7 +348,7 @@ function _addToAvailableClassroom(classmate) {
 			userUpdates["/nextClassroom"] = cid;
 			userUpdates["/nextClassroomDiscipline"] = d;
 			userUpdates["/timeOfNextClassroom"] = classroom["timeCreated"];
-			db.ref(dbName + "/users/" + uid).update(userUpdates);
+			db.ref(dbName + "/users/" + classmate["uid"]).update(userUpdates);
 		});
 	});
 }
@@ -399,6 +404,7 @@ function generateClassrooms() {
 				if (user["nextClassroom"] != undefined && user["nextClassroom"] != null) {
 					return;
 				}
+				
 				// If user already has all disciplines, return
 				if (_userHasAllDisciplines(user, allDisciplines)) {
 					return;
@@ -547,16 +553,15 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
 
 /**
  * KEY FUNCTION: Transfers users to their new classrooms when 4:28pm arrives.
- * TO BE RUN: :32 and :02 each hour on system time: Have to be run after assignQuestion.
+ * TO BE RUN: :28 and :58 each hour on system time.
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
  * 1) Add nextClassroom to classrooms and set nextClassroom and nextClassroomDiscipline to null, 
  * 2) Set hasNewClassroom to classroom title, 
- * 3) Add user to memberHasVoted in classroom
  * FOR TESTING: Change margin of time to 999999 * 60 * 1000
  */
 function transferToNewClassroom() {
 	var currentTimestamp = Date.now();
-	var marginOfTime = 999999 * 60 * 1000; // 1min leeway
+	var marginOfTime = 1 * 60 * 1000; // 1min leeway
 	db.ref(dbName + "/users")
 	.orderByChild("timeOfNextClassroom")
 	.startAt(currentTimestamp - marginOfTime)
@@ -777,6 +782,7 @@ function swapClassrooms() {
 				return;
 			}
 			user["uid"] = uid;
+			user["originalClassroom"] = user["nextClassroom"];
 			users.push(user);
 		});
 
@@ -812,10 +818,18 @@ function swapClassrooms() {
 		// Update with new classrooms
 		for (var i = 0; i < n; i++) {
 			var user = shuffledUsers[i];
+			var uid = user["uid"];
 			var updates = {};
-			updates["/nextClassroom"] = user["nextClassroom"];
-			updates["/nextClassroomDiscipline"] = user["nextClassroomDiscipline"];
-			db.ref(dbName + "/users/" + user["uid"]).update(updates);
+			var originalCid = user["originalClassroom"];
+			var newCid = user["nextClassroom"];
+			updates["/users/" + uid + "/nextClassroom"] = newCid;
+			updates["/users/" + uid + "/nextClassroomDiscipline"] = user["nextClassroomDiscipline"];
+			updates["/classrooms/" + newCid + "/memberHasVoted/" + uid] = 0
+			db.ref(dbName).update(updates);
+
+			// Also remove presence in original classroom
+			db.ref(dbName + "/classrooms/" + originalCid + "/memberHasVoted/" + uid).remove();
+
 		}
 	});
 }

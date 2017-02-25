@@ -32,11 +32,12 @@ var db = admin.database();
 // writeDidYouKnow("Astronomy", "https://www.youtube.com/embed/HeGPn5zxegY")
 
 // assignAllQuestionsToAllUsers();
+// transferAllQuestionsFromTestToReal();
 
 function transferAllQuestionsFromTestToReal() {
 	// NOTE: This DOES NOT transfer over qid linkages. Only run this when there are no classrooms!
-	db.ref("test_db/questions/").once("value", function(snapshot) {
-		db.ref("real_db/questions/").set(snapshot.val());
+	db.ref("test_db/questions/Computer Science").once("value", function(snapshot) {
+		db.ref("real_db/questions/Computer Science").set(snapshot.val());
 	})
 }
 
