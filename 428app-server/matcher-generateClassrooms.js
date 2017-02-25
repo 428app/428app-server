@@ -93,6 +93,7 @@ function _userHasAllDisciplines(user, allDisciplines) {
 		console.log("[Error] User does not have a discipline: " + user["uid"]);
 		return false;
 	}
+	
 	var classrooms = user["classrooms"];
 	if (classrooms == undefined || classrooms == null) {
 		return false;
@@ -227,9 +228,9 @@ function _assignClassroom(classmates, discipline) {
 		timeCreated = _addRandomDaysToTimestamp(timeCreated);
 	}
 
-	var classmateUids = [];
+	var memberHasVoted = {};
 	for (var i = 0; i < classmates.length; i++) {
-		classmateUids.push(classmates[i]["uid"]);
+		memberHasVoted[classmates[i]["uid"]] = 0;
 	}
 
 	// Pick a first question for this new classroom
@@ -257,7 +258,7 @@ function _assignClassroom(classmates, discipline) {
 				image: question["image"], // Image of classroom is image of question
 				timeCreated: timeCreated, // This time created is not now, but the time the classroom will be transferred
 				timezone: timezone,
-				memberHasVoted: null, // To assign members to classroom during transfer
+				memberHasVoted: memberHasVoted, // To assign members to classroom during transfer
 				questions: questions,
 				superlatives: null, // No superlatives yet
 				didYouKnow: did
@@ -267,9 +268,8 @@ function _assignClassroom(classmates, discipline) {
 				updates["/nextClassroom"] = cid;
 				updates["/nextClassroomDiscipline"] = discipline;
 				updates["/timeOfNextClassroom"] = timeCreated;
-				for (var k = 0; k < classmateUids.length; k++) {
-					var classmateUid = classmateUids[k];
-					db.ref(dbName + "/users/" + classmateUid).update(updates);
+				for (uid in memberHasVoted) {
+					db.ref(dbName + "/users/" + uid).update(updates);
 				}
 			});
 		});
@@ -282,11 +282,11 @@ function _assignClassroom(classmates, discipline) {
  * 1) timeCreated in the future, 
  * 2) discipline that classmate has not taken,
  * 3) same timezone as classmate.
- * 4) Less than or equal to 12 classmates.
+ * 4) Less than or equal to 11 classmates.
  * Used in generateClassrooms.
  * NOTE: Different behavior for a new user. 
  * A new user must get matched the next day 428, regardless of the number of classmates in the class.
- * @param {[JSON]} classmate 		JSON of classmate
+ * @param {JSON} classmate 		JSON of classmate
  * @return {None}
  */
 function _addToAvailableClassroom(classmate) {	
@@ -314,14 +314,23 @@ function _addToAvailableClassroom(classmate) {
 	var currentTimestamp = Date.now();
 	db.ref(dbName + "/classrooms").orderByChild("timeCreated").startAt(timestampToUse).once("value", function(snap) {
 
+		// Shuffle classrooms
+		var classrooms = [];
+		snap.forEach(function(data) {
+			var cid = data.key;
+			var classroom = data.val();
+			classroom["cid"] = cid;
+			classrooms.push(classroom);
+		});
+		classrooms = _shuffleArray(classrooms);
+
 		// Find the classrooms that are included in the disciplines available, and assign to the first one
 		var classroomFound = false;
-		snap.forEach(function(data) {
+		classrooms.forEach(function(classroom) {
 			if (classroomFound) {
 				return;
 			}
-			var cid = data.key;
-			var classroom = data.val();
+			var cid = classroom["cid"];
 			var d = classroom["title"];
 
 			// If new user, can only accept exactly next day 4:28pm
@@ -344,11 +353,14 @@ function _addToAvailableClassroom(classmate) {
 			classroomFound = true;
 
 			// Modify user
-			var userUpdates = {};
-			userUpdates["/nextClassroom"] = cid;
-			userUpdates["/nextClassroomDiscipline"] = d;
-			userUpdates["/timeOfNextClassroom"] = classroom["timeCreated"];
-			db.ref(dbName + "/users/" + classmate["uid"]).update(userUpdates);
+			var updates = {};
+			var uid = classmate["uid"];
+			var userPath = "/users/" + uid;
+			updates[userPath + "/nextClassroom"] = cid;
+			updates[userPath + "/nextClassroomDiscipline"] = d;
+			updates[userPath + "/timeOfNextClassroom"] = classroom["timeCreated"];
+			updates["/classrooms/" + cid + "/memberHasVoted/" + uid] = 0;
+			db.ref(dbName).update(updates);
 		});
 	});
 }
@@ -404,7 +416,6 @@ function generateClassrooms() {
 				if (user["nextClassroom"] != undefined && user["nextClassroom"] != null) {
 					return;
 				}
-				
 				// If user already has all disciplines, return
 				if (_userHasAllDisciplines(user, allDisciplines)) {
 					return;
