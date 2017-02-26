@@ -269,7 +269,7 @@ function _assignClassroom(classmates, discipline) {
 			}
 			
 			var questions = {};
-			questions[question["qid"]] = timeCreated; // Date of time created - note that this is not 4:28pm
+			questions[question["qid"]] = {"timestamp": timeCreated}; // Date of time created - note that this is not 4:28pm
 
 			// Create the classroom
 			db.ref(dbName + "/classrooms/" + cid).set({
@@ -589,6 +589,7 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
  * If user's timeOfNextClassroom is equal to current, and nextClassroom is not null:
  * 1) Add nextClassroom to classrooms and set nextClassroom and nextClassroomDiscipline to null, 
  * 2) Set hasNewClassroom to classroom title, 
+ * 3) Transfers users into questions: uid
  * FOR TESTING: Change margin of time to 999999 * 60 * 1000
  */
 function transferToNewClassroom() {
@@ -644,8 +645,9 @@ function transferToNewClassroom() {
 					updates["/users/" + uid + "/nextClassroomDiscipline"] = null;
 					updates["/users/" + uid + "/hasNewClassroom"] = discipline;
 
-					// Update classroom memberHasVoted
+					// Update classroom memberHasVoted and questions/qid/uid answer votes
 					updates["/classrooms/" + cid + "/memberHasVoted/" + uid] = 0
+					updates["/classrooms/" + cid + "/questions/" + qid + "/" + uid] = 0
 
 					db.ref(dbName).update(updates).then(function() {
 						_sendPushNotification("", uid, "NEW: Classroom", "Hey you! Time to learn " + discipline + "!", 1);
@@ -716,7 +718,12 @@ function assignNewQuestion(completed) {
 					// Set questions in classroom and send a new classroom message containing the question
 					
 					var updates = _createClassroomMessageForQuestion(cid, questionText, currentTimestamp);
-					updates["/classrooms/" + cid + "/questions/" + qid] = currentTimestamp;
+					updates["/classrooms/" + cid + "/questions/" + qid + "/timestamp"] = currentTimestamp;
+					// Also copy over all members to questions
+					for (var x = 0; x < classmateUids.length; x++) {
+						var classmateUid = classmateUids[x];
+						updates["/classrooms/" + cid + "/questions/" + qid + "/" + classmateUid] = 0;
+					}
 					db.ref(dbName).update(updates).then(function() {
 						classmateUids.forEach(function(classmateUid) {
 							// First check if this user has updates for this classroom to decide if we should increment push count
@@ -873,4 +880,52 @@ function swapClassrooms() {
 			db.ref(dbName).update(updates)
 		}
 	});
+}
+
+// Runs manually to aggregate all questions' likes and dislikes across all classrooms and users
+function aggregateQuestionLikes() {
+	db.ref(dbName + "/classrooms").once("value", function(classesSnap) {
+		var qidToLikes = {};
+		var qidToDislikes = {};
+
+		// Accumulate likes and dislikes in dictionaries
+		
+		classesSnap.forEach(function(classData) {
+			var classroom = classData.val()
+			var cid = classData.key;
+			var discipline = classroom["title"];
+			var questions = classroom["questions"];
+			for (var qid in questions) {
+				var questionDict = questions[qid];
+				var qidDiscipline = discipline + "," + qid;
+				delete questionDict["timestamp"]
+				for (var uid in questionDict) {
+					if (uid == "timestamp") continue;
+					if (questionDict[uid] == 1) {
+						var newLikes = qidToLikes[qidDiscipline] == null ? 0 : qidToLikes[qidDiscipline];
+						qidToLikes[qidDiscipline] = newLikes + 1;
+					} else if (questionDict[uid] == -1) {
+						var newDislikes = qidToDislikes[qidDiscipline] == null ? 0 : qidToDislikes[qidDiscipline];
+						qidToDislikes[qidDiscipline] = newDislikes + 1;
+					}
+				}
+			}
+		});
+
+		// Update database with new likes and dislikes for all questions
+
+		for (var qidDiscipline in qidToLikes) {
+			var discipline = qidDiscipline.split(",")[0]
+			var qid = qidDiscipline.split(",")[1]
+			var likes = qidToLikes[qidDiscipline];
+			db.ref(dbName + "/questions/" + discipline + "/" + qid + "/likes").set(likes);
+		}
+
+		for (var qidDiscipline in qidToDislikes) {
+			var discipline = qidDiscipline.split(",")[0]
+			var qid = qidDiscipline.split(",")[1]
+			var dislikes = qidToDislikes[qidDiscipline];
+			db.ref(dbName + "/questions/" + discipline + "/" + qid + "/dislikes").set(dislikes);
+		}
+	})
 }
