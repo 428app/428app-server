@@ -214,6 +214,22 @@ function _nextDay428(inputTimezone) {
 }
 
 /**
+ * Creates server classroom message of a new question for classrooms.
+ * @param  {String} cid          Classroom id
+ * @param  {String} questionText Text of question
+ * @param  {Double} timestamp    UNIX time stamp (milliseconds)
+ * @return {JSON}              	 Dictionary of Firebase update from dbName root
+ */
+function _createClassroomMessageForQuestion(cid, questionText, timestamp) {
+	var mid = db.ref(dbName + "/classroomMessages/" + cid).push().key;
+	var updates = {};
+	updates["/classroomMessages/" + cid + "/" + mid + "/message"] = questionText
+	updates["/classroomMessages/" + cid + "/" + mid + "/poster"] = "428" // This MUST be "428", String
+	updates["/classroomMessages/" + cid + "/" + mid + "/timestamp"] = timestamp // This MUST be "428", String
+	return updates
+}
+
+/**
  * Assigns classmates to a classroom in Firebase. Used in generateClassrooms.
  * @param  {[JSON]} classmates      List of classmate JSON to be assigned
  * @param  {String} discipline 		String of discipline or classroomTitle
@@ -266,14 +282,15 @@ function _assignClassroom(classmates, discipline) {
 				superlatives: null, // No superlatives yet
 				didYouKnow: did
 			}).then(function() {
+				// Add a classroom message to this classroom
+				var updates = _createClassroomMessageForQuestion(cid, question["question"], timeCreated);
 				// Modify classmates' nextClassroom, nextClassroomDiscipline and timeOfNextClassroom
-				var updates = {};
-				updates["/nextClassroom"] = cid;
-				updates["/nextClassroomDiscipline"] = discipline;
-				updates["/timeOfNextClassroom"] = timeCreated;
 				for (uid in memberHasVoted) {
-					db.ref(dbName + "/users/" + uid).update(updates);
+					updates["/users/" + uid + "/nextClassroom"] = cid;
+					updates["/users/" + uid + "/nextClassroomDiscipline"] = discipline;
+					updates["/users/" + uid + "/timeOfNextClassroom"] = timeCreated;
 				}
+				db.ref(dbName).update(updates);
 			});
 		});
 	})
@@ -651,6 +668,7 @@ function transferToNewClassroom() {
 function assignNewQuestion(completed) {
 	var serverTimezone = (-new Date().getTimezoneOffset()) / 60.0;
 	var serverMinute = new Date().getMinutes();
+	var currentTimestamp = Date.now()
 
 	// Get all questions first
 	db.ref(dbName + "/questions").once("value", function(allQuestionsSnap) {
@@ -665,7 +683,7 @@ function assignNewQuestion(completed) {
 
 				// First check if the classroom is already created for users. If it is not yet created, return.
 				var classTimeCreated = classroom["timeCreated"];
-				if (classTimeCreated != null && Date.now() <= classTimeCreated + (5 * 60 * 1000)) { // Add 5 min buffer
+				if (classTimeCreated != null && currentTimestamp <= classTimeCreated + (5 * 60 * 1000)) { // Add 5 min buffer
 					// Class not created yet (or just created), don't push new question or users will get 2 first questions
 					return;
 				}
@@ -690,13 +708,16 @@ function assignNewQuestion(completed) {
 					
 					// Assign this question
 					var questionData = questionsAvailable[qid];
-					var currentTimestamp = Date.now();
 					var questionNum = qidsAsked.length + 1;
 					var questionImage = questionData["image"];
 					var questionText = questionData["question"];
 					var questionShareImage = questionData["shareImage"];
 
-					db.ref(dbName + "/classrooms/" + cid + "/questions/" + qid).set(currentTimestamp).then(function() {
+					// Set questions in classroom and send a new classroom message containing the question
+					
+					var updates = _createClassroomMessageForQuestion(cid, questionText, currentTimestamp);
+					updates["/classrooms/" + cid + "/questions/" + qid] = currentTimestamp;
+					db.ref(dbName).update(updates).then(function() {
 						classmateUids.forEach(function(classmateUid) {
 							// First check if this user has updates for this classroom to decide if we should increment push count
 							db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid + "/hasUpdates").once("value", function(userHasViewedSnap) {
@@ -708,7 +729,8 @@ function assignNewQuestion(completed) {
 								classUpdates["questionText"] = questionText;
 								classUpdates["questionShareImage"] = questionShareImage;
 								classUpdates["hasUpdates"] = true;
-								classUpdates["timeReplied"] = Date.now();
+								classUpdates["timeReplied"] = currentTimestamp;
+
 								db.ref(dbName + "/users/" + classmateUid + "/classrooms/" + cid).update(classUpdates).then(function() {
 									// Send push notification to this user if needed
 									_sendPushNotification(questionImage, classmateUid, "NEW: " + discipline + " question", "You know you want to open this.", additionalPushCount);
