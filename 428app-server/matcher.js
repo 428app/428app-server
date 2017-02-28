@@ -741,7 +741,7 @@ function assignNewQuestion(completed) {
 
 								db.ref(dbName + "/users/" + playpeerUid + "/playgroups/" + pid).update(playgroupUpdates).then(function() {
 									// Send push notification to this user if needed
-									_sendPushNotification(questionImage, playpeerUid, "NEW: " + discipline + " question", "You know you want to open this.", additionalPushCount);
+									_sendPushNotification(questionImage, playpeerUid, "NEW: " + discipline.toUpperCase() + " QUESTION", "You know you want to open this.", additionalPushCount);
 								});
 							})
 						});
