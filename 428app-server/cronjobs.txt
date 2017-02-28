@@ -1,16 +1,16 @@
 # Check for mail here: vim /var/spool/mail/ec2-user
 
-# Classroom matches generated every 5 minutes
-4,9,14,19,24,29,34,39,44,49,54,59 * * * * pkill -f matcher-generateClassrooms.js
-0,5,10,15,20,25,30,35,40,45,50,55 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-generateClassrooms.js
+# Playgroup matches generated every 5 minutes
+4,9,14,19,24,29,34,39,44,49,54,59 * * * * pkill -f matcher-generatePlaygroups.js
+0,5,10,15,20,25,30,35,40,45,50,55 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-generatePlaygroups.js
 
-# Every :28 and :58 system time assign classrooms
-27,57 * * * * pkill -f matcher-transferToNewClassroom.js
-28,58 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-transferToNewClassroom.js
+# Every :28 and :58 system time assign playgroups
+27,57 * * * * pkill -f matcher-transferToNewPlaygroup.js
+28,58 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-transferToNewPlaygroup.js
 
-# Every :29 and :59 system time swap classrooms
-28,58 * * * * pkill -f matcher-swapClassrooms.js
-29,59 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-swapClassrooms.js
+# Every :29 and :59 system time swap playgroups
+28,58 * * * * pkill -f matcher-swapPlaygroups.js
+29,59 * * * * /home/ec2-user/.nvm/versions/node/v6.9.5/bin/node /home/ec2-user/428app-server/428app-server/matcher-swapPlaygroups.js
 
 # Every :28 and :58 assign new question
 27,57 * * * * pkill -f matcher-assignNewQuestion.js

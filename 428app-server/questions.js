@@ -31,11 +31,11 @@ var db = admin.database();
 // EXAMPLE: Write a did you know
 // writeDidYouKnow("Astronomy", "https://www.youtube.com/embed/HeGPn5zxegY")
 
-// assignAllQuestionsToAllUsers();
+assignAllQuestionsToAllUsers();
 // transferAllQuestionsFromTestToReal();
 
 function transferAllQuestionsFromTestToReal() {
-	// NOTE: This DOES NOT transfer over qid linkages. Only run this when there are no classrooms!
+	// NOTE: This DOES NOT transfer over qid linkages. Only run this when there are no playgroups!
 	db.ref("test_db/questions/Computer Science").once("value", function(snapshot) {
 		db.ref("real_db/questions/Computer Science").set(snapshot.val());
 	})
@@ -69,7 +69,7 @@ function _randomDidYouKnowOfDiscipline(discipline, completed) {
 }
 
 /**
- * Test function that assigns all questions into classrooms to all classmates.
+ * Test function that assigns all questions into playgroups to all playgroupmates.
  * Used for seeing how questions/answers/pictures turn out.
  */
 function assignAllQuestionsToAllUsers() {
@@ -101,7 +101,12 @@ function assignAllQuestionsToAllUsers() {
 						if (Object.keys(latestQ).length == 0) {
 							latestQ = qDict[qid];
 						}
-						questions[qid] = dictLength;
+						var questionDict = {};
+						questionDict["timestamp"] = dictLength;
+						for (var k = 0; k < uids.length; k++) {
+							questionDict[uids[k]] = 0
+						}
+						questions[qid] = questionDict;
 						dictLength--;
 					}
 
@@ -114,9 +119,9 @@ function assignAllQuestionsToAllUsers() {
 
 					var shareImage = latestQ["shareImage"] == null ? "" : latestQ["shareImage"];
 
-					// Create a new classroom of this discipline
-					var cid = db.ref(dbName + "/classrooms").push().key;
-					db.ref(dbName + "/classrooms/" + cid).set({
+					// Create a new playgroup of this discipline
+					var cid = db.ref(dbName + "/playgroups").push().key;
+					db.ref(dbName + "/playgroups/" + cid).set({
 						title: discipline,
 						image: latestQ["image"],
 						timeCreated: 0,
@@ -126,10 +131,10 @@ function assignAllQuestionsToAllUsers() {
 						superlatives: null,
 						didYouKnow: did
 					})
-					// Insert into users' classrooms
+					// Insert into users' playgroups
 					for (var k = 0; k < uids.length; k++) {
 						var uid = uids[k];
-						db.ref(dbName + "/users/" + uid + "/classrooms/" + cid).set({
+						db.ref(dbName + "/users/" + uid + "/playgroups/" + cid).set({
 							discipline: discipline,
 							questionNum: Object.keys(questions).length,
 							questionImage: latestQ["image"],
@@ -150,7 +155,7 @@ function assignAllQuestionsToAllUsers() {
 
 /**
  * Function used to write a question to the data store
- * @param  {String} discipline 		Title of the classroom, which is the discipline
+ * @param  {String} discipline 		Title of the playgroup, which is the discipline
  * @param  {String} image          	Image URL string of the question
  * @param  {String} question       	Multiline question separated with \n if necessary
  * @param  {String} answer         	Multiline answer separated with \n if necessary, or link if this is a video answer
@@ -172,7 +177,7 @@ function writeQuestion(discipline, image, question, answer, isVideoAnswer, share
 /**
  * Writes questions from a tab-separated file and posts them to the Questions Firebase store.
  * Rows are separated by a newline.
- * Columns are: classroomTitle, image, question, answer, isVideoAnswer, shareImage
+ * Columns are: playgroupTitle, image, question, answer, isVideoAnswer, shareImage
  * @param  {String} tsvFile 	Tab separated file (without header)
  * @return None
  */
@@ -206,8 +211,8 @@ function writeQuestionsFromTSVFile(tsvFile) {
 }
 
 /**
- * Write a did you know. Each classroom, when created, will have a did you know.
- * @param  {String} discipline 		Title of the classroom, which is the discipline
+ * Write a did you know. Each playgroup, when created, will have a did you know.
+ * @param  {String} discipline 		Title of the playgroup, which is the discipline
  * @param  {String} videoLink      	Youtube video link of the format, i.e. https://www.youtube.com/embed/xxxxx. 
  * Video link is also share link.
  * @return {None}                
@@ -219,7 +224,7 @@ function writeDidYouKnow(discipline, videoLink) {
 	});
 }
 
-// 4 didyouknows per discipline - we don't need too many because each classroom will just randomly choose one
+// 4 didyouknows per discipline - we don't need too many because each playgroup will just randomly choose one
 
 // writeDidYouKnow("Astronomy", "https://www.youtube.com/embed/U2HQP08UbZM")
 // writeDidYouKnow("Astronomy", "https://www.youtube.com/embed/5sbrpxmq8yk")
