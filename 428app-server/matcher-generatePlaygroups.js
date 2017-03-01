@@ -17,10 +17,8 @@ var db = admin.database();
 
 // These disciplines are not currently being used, but is the full list of disciplines that could occur
 var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Education", "Fashion"];
-var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Likely to be arrested", "Most dramatic", "Richest right now", "Party animal", "Most lovable", "Future billionaire", "Boyfriend material", "Prime minister to-be", "Trump's best friend", "Sex god", "FBI agent", "Actually a celebrity", "Kim K.'s next BF", "Cat lover", "Most hipster", "Worst driver", "Selfie King/Queen", "Most innocent", "Drunkard"];
-
-// Temporary
-var DAYS_TO_ASSIGN_SUPERLATIVES = 1 // TODO: Change back to 7
+var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Likely to be arrested", "Most dramatic", "Richest right now", "Party animal", "Most lovable", "Future billionaire", "Boyfriend material", "Prime minister to-be", "Best friend of Trump", "Sex god", "FBI agent", "Actually a celebrity", "Next BF of Kim K", "Cat lover", "Most hipster", "Worst driver", "Selfie Queen", "Most innocent", "Drunkard"];
+var DAYS_TO_ASSIGN_SUPERLATIVES = 2
 
 /********************************************************************************************/
 // MAKE THE CALL HERE
@@ -173,8 +171,8 @@ function _randomDidYouKnowOfDiscipline(discipline, completed) {
  */
 function _addRandomDaysToTimestamp(timestamp) {
 	var oneDay = 24 * 60 * 60 * 1000;
-	var random = Math.round((Math.random() * 2)) + 5
-	return timestamp + (0 * oneDay) // TODO: Change to random * oneDay
+	var random = Math.round((Math.random() * 2)) + 4
+	return timestamp + (random * oneDay)
 }
 
 /**
@@ -641,6 +639,7 @@ function transferToNewPlaygroup() {
 					updates["/users/" + uid + "/nextPlaygroup"] = null;
 					updates["/users/" + uid + "/nextPlaygroupDiscipline"] = null;
 					updates["/users/" + uid + "/hasNewPlaygroup"] = discipline;
+					updates["/users/" + uid + "/lobbyId"] = null;
 
 					// Update playgroup memberHasVoted and questions/qid/uid answer votes
 					updates["/playgroups/" + pid + "/memberHasVoted/" + uid] = 0
@@ -737,7 +736,7 @@ function assignNewQuestion(completed) {
 
 								db.ref(dbName + "/users/" + playpeerUid + "/playgroups/" + pid).update(playgroupUpdates).then(function() {
 									// Send push notification to this user if needed
-									_sendPushNotification(questionImage, playpeerUid, "NEW: " + discipline.toUpperCase() + " QUESTION", "You know you want to open this.", additionalPushCount);
+									_sendPushNotification(questionImage, playpeerUid, "NEW " + discipline.toUpperCase() + " QUESTION", "You know you want to open this.", additionalPushCount);
 								});
 							})
 						});

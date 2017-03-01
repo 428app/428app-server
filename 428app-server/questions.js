@@ -31,7 +31,7 @@ var db = admin.database();
 // EXAMPLE: Write a did you know
 // writeDidYouKnow("Astronomy", "https://www.youtube.com/embed/HeGPn5zxegY")
 
-assignAllQuestionsToAllUsers();
+// assignAllQuestionsToAllUsers();
 // transferAllQuestionsFromTestToReal();
 
 function transferAllQuestionsFromTestToReal() {
