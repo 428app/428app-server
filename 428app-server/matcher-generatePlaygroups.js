@@ -26,22 +26,14 @@ generatePlaygroups();
 /********************************************************************************************/
 
 /**
- * Checks if a user has already been in a playgroup of a certain discipline, or if user is that discipline.
+ * Checks if a user has already been in a playgroup of a certain discipline.
  * Used to ensure users do not get assigned the same playgroup previously assigned.
  * @param  {[JSON]} user 			JSON representation of a user
  * @param  {[String]} discipline 	String representation of the discipline to check for
  * @return {[Bool]}            		True if user has the discipline, False otherwise
  */
 function _userHasDiscipline(user, discipline) {
-	var userDiscipline = user["discipline"];
 	var playgroups = user["playgroups"];
-	if (userDiscipline == undefined) {
-		console.log("[Error] User does not have a discipline: " + user["uid"]);
-		return false;
-	}
-	if (userDiscipline == discipline) {
-		return true;
-	}
 	for (var pid in playgroups) {
 		var d = playgroups[pid]["discipline"];
 		if (discipline == d) {
@@ -82,23 +74,16 @@ function _availableDisciplines(completed) {
 /**
  * Checks if a user has taken all disciplines, and therefore have no more new playgroups for this user.
  * @param  {JSON} user 						JSON representation of a user
- * @param  {[String]} completed		String array of all disciplines
+ * @param  {[String]} completed				String array of all disciplines
  * @return {Bool} true if user has taken all disciplines, false otherwise
  */
 function _userHasAllDisciplines(user, allDisciplines) {
-	var userDiscipline = user["discipline"];
-	if (userDiscipline == undefined) {
-		console.log("[Error] User does not have a discipline: " + user["uid"]);
-		return false;
-	}
-	
 	var playgroups = user["playgroups"];
 	if (playgroups == undefined || playgroups == null) {
 		return false;
 	}
 	// Grab user disciplines from playgroups dict
 	var userDisciplines = [];
-	userDisciplines.push(user["discipline"]);
 	for (var pid in playgroups) {
 		var playgroupDict = playgroups[pid];
 		userDisciplines.push(playgroupDict["discipline"]);
@@ -164,15 +149,14 @@ function _randomDidYouKnowOfDiscipline(discipline, completed) {
 }
 
 /**
- * Adds 5 days to 7 days to input time stamp.
- * The randomness is to prevent people from the same group from getting the same playgroup.
+ * Add certain number of days to input timestamp. Default is 4 days.
  * @param {Double} timestamp 		UNIX time in milliseconds
+ * @param {Int} days 				Number of days to add to input timestamp.
  * @return {Double} UNIX time in milliseconds
  */
-function _addRandomDaysToTimestamp(timestamp) {
+function _addDaysToTimestamp(timestamp, days) {
 	var oneDay = 24 * 60 * 60 * 1000;
-	var random = Math.round((Math.random() * 2)) + 4
-	return timestamp + (random * oneDay)
+	return timestamp + (days * oneDay)
 }
 
 /**
@@ -232,14 +216,14 @@ function _createPlaygroupMessageForQuestion(pid, questionText, timestamp) {
  */
 function _assignPlaygroup(playpeers, discipline) {
 	var pid = db.ref(dbName + "/playgroups").push().key;	
-	var timeOfNextPlaygroup = playpeers[0]["timeOfNextPlaygroup"];
+	var timeCreated = playpeers[0]["timeOfNextPlaygroup"];
 	var timezone = playpeers[0]["timezone"];
-	
+
 	// Time created is defaulted to the next 4:28pm in this timezone
 	var timeCreated = _nextDay428(timezone); // No playgroup previously as playpeers are new users
 	if (timeOfNextPlaygroup != undefined) { 
-		// Next playgroup will be in 5-7 days after the next day 4:28pm for non-new users
-		timeCreated = _addRandomDaysToTimestamp(timeCreated);
+		// Next playgroup will be in 4-8 days after the next day 4:28pm for non-new users
+		timeCreated = _addDaysToTimestamp(timeCreated, 4);
 	}
 
 	var memberHasVoted = {};
@@ -307,7 +291,7 @@ function _assignPlaygroup(playpeers, discipline) {
 function _addToAvailablePlaygroup(playpeer) {	
 
 	// Assemble disciplines taken by this playpeer
-	var disciplinesTaken = [playpeer["discipline"]];
+	var disciplinesTaken = [];
 	var playgroupsTaken = playpeer["playgroups"];
 	if (playgroupsTaken != undefined) {
 		for (pid in playgroupsTaken) {
@@ -316,18 +300,28 @@ function _addToAvailablePlaygroup(playpeer) {
 	}
 
 	var timezone = playpeer["timezone"];
-	var timestampToUse = Date.now();
+
+	var timestampToStart = playpeer["timeOfNextPlaygroup"];
+	var timestampToEnd = playpeer["timeOfNextPlaygroup"];
 	// If playpeer has no timeOfNextPlaygroup, this is a new user!
-	var isNewUser = playpeer["timeOfNextPlaygroup"] == null;
+	var isNewUser = timestampToStart == null;
 	if (isNewUser) {
 		// For new users, need to assign playgroups of the next day 428, OR just don't assign if cannot find
-		timestampToUse = _nextDay428(timezone);
+		timestampToStart = _nextDay428(timezone);
+		timestampToEnd = _nextDay428(timezone); // Can only assign playgroups that are due tomorrow
+	} else {
+		// Assign this user to a playgroup that is 4-8 days from her previous playgroup
+		timestampToStart = _addDaysToTimestamp(timestampToStart, 4);
+		timestampToEnd = _addDaysToTimestamp(timestampToEnd, 8);
 	}
 	
 	// For each of these disciplines, look in playgroups that have not been assigned yet
 	// These have timeCreated > now (or after next day 428)
 	var currentTimestamp = Date.now();
-	db.ref(dbName + "/playgroups").orderByChild("timeCreated").startAt(timestampToUse).once("value", function(snap) {
+	db.ref(dbName + "/playgroups")
+	.orderByChild("timeCreated")
+	.startAt(timestampToStart)
+	.endAt(timestampToEnd).once("value", function(snap) {
 
 		// Shuffle playgroups
 		var playgroups = [];
@@ -349,7 +343,8 @@ function _addToAvailablePlaygroup(playpeer) {
 			var d = playgroup["title"];
 
 			// If new user, can only accept exactly next day 4:28pm
-			if (isNewUser && playgroup["timeCreated"] != timestampToUse) {
+			if (isNewUser && playgroup["timeCreated"] != timestampToStart) {
+				// This will likely not happen, given the startAt and endAt, but this is to be extra sure
 				return;
 			}
 
@@ -442,9 +437,21 @@ function generatePlaygroups() {
 					return;
 				}
 
+				// If the randomDaysForNextPlayground + timeOfNextPlayground (old playground)
+				// If it has not yet been longer than random days after the previous playgroup, then return
+				var randomDays = user["randomDaysForNextPlaygroup"];
+				var timeOfNextPlaygroup = user["timeOfNextPlaygroup"];
+				if (timeOfNextPlaygroup != undefined && randomDays != undefined) {
+					var oneDay = 24 * 60 * 60 * 1000;	
+					if (Date.now() < (timeOfNextPlaygroup + (randomDays * oneDay))) {
+						// Not yet time to assign playgroup for this user
+						return;
+					}
+				}
+
 				// Group this user into the right timezone
 				var timezone = "" + user["timezone"];
-				if (user["timeOfNextPlaygroup"] == undefined) { // New users are grouped together
+				if (timeOfNextPlaygroup == undefined) { // New users are grouped together
 					timezone += "new"
 				}
 				var playpeers = usersByTimezone[timezone] == undefined ? [] : usersByTimezone[timezone]
@@ -583,8 +590,9 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
  * TO BE RUN: :28 and :58 each hour on system time.
  * If user's timeOfNextPlaygroup is equal to current, and nextPlaygroup is not null:
  * 1) Add nextPlaygroup to playgroups and set nextPlaygroup and nextPlaygroupDiscipline to null, 
- * 2) Set hasNewPlaygroup to playgroup title, 
- * 3) Transfers users into questions: uid
+ * 2) Generate a random number of days till next time to run generatePlaygroups on this user
+ * 3) Set hasNewPlaygroup to playgroup title, 
+ * 4) Transfers users into questions: uid
  * FOR TESTING: Change margin of time to 999999 * 60 * 1000
  */
 function transferToNewPlaygroup() {
@@ -640,6 +648,9 @@ function transferToNewPlaygroup() {
 					updates["/users/" + uid + "/nextPlaygroupDiscipline"] = null;
 					updates["/users/" + uid + "/hasNewPlaygroup"] = discipline;
 					updates["/users/" + uid + "/lobbyId"] = null;
+					// Random number of days from 0 to 4 until generatePlaygrounds is run on this user again
+					var randomDays = Math.round((Math.random() * 3))
+					updates["/users/" + uid + "/randomDaysForNextPlaygroup"] = randomDays
 
 					// Update playgroup memberHasVoted and questions/qid/uid answer votes
 					updates["/playgroups/" + pid + "/memberHasVoted/" + uid] = 0
