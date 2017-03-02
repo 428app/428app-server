@@ -211,6 +211,18 @@ function writeQuestionsFromTSVFile(tsvFile) {
 }
 
 /**
+ * Write a sound smart, which is used in playgroup chats.
+ * @param  {String} message 		Chat message that sounds smart
+ * @return {None}
+ */
+function writeSoundSmarts(message) {
+	var sid = db.ref(dbName + "/soundsmarts/").push().key;
+	db.ref(dbName + "/soundsmarts/" + sid).set({
+		message: message
+	});
+}
+
+/**
  * Write a did you know. Each playgroup, when created, will have a did you know.
  * @param  {String} discipline 		Title of the playgroup, which is the discipline
  * @param  {String} videoLink      	Youtube video link of the format, i.e. https://www.youtube.com/embed/xxxxx. 
