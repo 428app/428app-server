@@ -21,7 +21,7 @@ admin.initializeApp({
 console.log("matcher.js is running...");
 
 // NOTE: This will be /test_db when you're testing
-var dbName = "/real_db"
+var dbName = "/test_db"
 var db = admin.database();
 
 // These disciplines are not currently being used, but is the full list of disciplines that could occur
@@ -359,8 +359,13 @@ function _addToAvailablePlaygroup(playpeer) {
 
 			// NOTE: Void this rule if it is a new user, as they NEED a playgroup
 			var MAX_playgroup_SIZE = 12
-			if (!isNewUser && Object.keys(playgroup["memberHasVoted"]).length >= MAX_playgroup_SIZE) {
-				return;
+			// Only add user to groups that are small
+			if (Object.keys(playgroup["memberHasVoted"]).length >= MAX_playgroup_SIZE) {
+				if (!isNewUser) return; // Not a new user, don't add to classroom
+				// Make an exception for a new user, but don't add anyway if the current time 
+				// is still more than 30min before the next 4:28pm
+				var thirtyMinutes = 1000 * 60 * 30
+				if (Date.now() <= timestampToStart - thirtyMinutes) return; 
 			}
 
 			// Found the right playgroup!
