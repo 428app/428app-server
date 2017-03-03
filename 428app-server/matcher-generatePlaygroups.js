@@ -216,7 +216,7 @@ function _createPlaygroupMessageForQuestion(pid, questionText, timestamp) {
  */
 function _assignPlaygroup(playpeers, discipline) {
 	var pid = db.ref(dbName + "/playgroups").push().key;	
-	var timeCreated = playpeers[0]["timeOfNextPlaygroup"];
+	var timeOfNextPlaygroup = playpeers[0]["timeOfNextPlaygroup"];
 	var timezone = playpeers[0]["timezone"];
 
 	// Time created is defaulted to the next 4:28pm in this timezone
