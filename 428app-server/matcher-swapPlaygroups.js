@@ -355,8 +355,13 @@ function _addToAvailablePlaygroup(playpeer) {
 
 			// NOTE: Void this rule if it is a new user, as they NEED a playgroup
 			var MAX_playgroup_SIZE = 12
-			if (!isNewUser && Object.keys(playgroup["memberHasVoted"]).length >= MAX_playgroup_SIZE) {
-				return;
+			// Only add user to groups that are small
+			if (Object.keys(playgroup["memberHasVoted"]).length >= MAX_playgroup_SIZE) {
+				if (!isNewUser) return; // Not a new user, don't add to classroom
+				// Make an exception for a new user, but don't add anyway if the current time 
+				// is still more than 30min before the next 4:28pm
+				var thirtyMinutes = 1000 * 60 * 30
+				if (Date.now() <= timestampToStart - thirtyMinutes) return; 
 			}
 
 			// Found the right playgroup!
