@@ -19,11 +19,32 @@ var dbName = "/test_db"
 var db = admin.database();
 
 // EXAMPLE: Write a question
-// writeQuestion("Computer Science", 
-// 	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fphysics%2Fphysics22.jpg?alt=media&token=bd13fdf9-dfb3-4347-bc90-4c6e9853648a", 
-// 	"What are databases? What types of databases are there? Discuss how 428 stores your data in our database.", 
-// 	"https://www.youtube.com/embed/gfT7EGibry0", 
-// 	true, "")
+writeQuestion("Biology", 
+	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fbiology%2Fbio29.jpg?alt=media&token=6f5639f0-a651-45bd-8c9a-b645a3fe5cc2", 
+	"What is the difference between you and a rock? What is life? ", 
+	"https://www.youtube.com/embed/QOCaacO8wus", 
+	true, "")
+
+writeQuestion("Biology", 
+	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fbiology%2Fbio30.jpg?alt=media&token=9e06cffb-c44d-441d-b90a-1f6c3487c5a1", 
+	"What is the Antibiotic Apocalypse? What is it all about? And how dangerous is it?", 
+	"https://www.youtube.com/embed/xZbcwi7SfZE", 
+	true, "")
+
+writeQuestion("Biology", 
+	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fbiology%2Fbio31.jpg?alt=media&token=d3d6f512-b9a3-4081-b706-e39a52429cba", 
+	"Every second of your life you are under attack. Bacteria and viruses want to enter your body and use its resources for themselves. How does your immune system stop these invaders?", 
+	"https://www.youtube.com/embed/zQGOcOUBi6s", 
+	true, "")
+
+writeQuestion("Biology", 
+	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Fbiology%2Fbio32.jpg?alt=media&token=9b868214-55e9-492a-9e0b-563ab86efd46", 
+	"What does the Ebola virus actually do in your body? Why is it so dangerous and why does it kill so many people?", 
+	"https://www.youtube.com/embed/sRv19gkZ4E0", 
+	true, "")
+
+
+
 // 
 // EXAMPLE: Write a batch of Physics questions
 // writeQuestionsFromTSVFile("/Users/leonardloo/Desktop/428/428-questions/physics.tsv");

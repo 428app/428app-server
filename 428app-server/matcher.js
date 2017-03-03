@@ -605,6 +605,10 @@ function _sendPushNotification(posterImage, recipientUid, title, body, additiona
  * FOR TESTING: Change margin of time to 999999 * 60 * 1000
  */
 function transferToNewPlaygroup() {
+	// Server timezone and minute here used to send Sorry messages (let's hope there aren't many)
+	var serverTimezone = (-new Date().getTimezoneOffset()) / 60.0;
+	var serverMinute = new Date().getMinutes();
+
 	var currentTimestamp = Date.now();
 	var marginOfTime = 1 * 60 * 1000; // 1min leeway
 	db.ref(dbName + "/users")
@@ -670,6 +674,32 @@ function transferToNewPlaygroup() {
 					});
 				});
 			});
+		});
+	});
+
+	// Also notify new/active users who do not have a playgroup :(
+	var twoDays = 2 * 24 * 60 * 60 * 1000;
+	db.ref(dbName + "/users")
+	.orderByChild("lastSeen")
+	.startAt(currentTimestamp - twoDays).once("value", function(snap) {
+		snap.forEach(function(data) {
+			var user = data.val();
+			var uid = data.key;
+
+			// In this user's timezone in 4:28
+			var userTimezone = user["timezone"];
+			var hoursToAdd = userTimezone - serverTimezone; // Assume whole sum
+			var serverHour = new Date().getHours();
+			var userHour = (serverHour + hoursToAdd) % 24;
+			if (!(userHour == 16 && serverMinute == 28) && !(userHour == 15.5 && serverMinute == 58)) {
+				// Not time yet to assign this user a new playgroup, return
+				return;
+			}
+
+			if (user["playgroups"] == undefined && user["nextPlaygroup"] == undefined) {
+				// New user has no playgroups...
+				db.ref(dbName + "/users/" + uid + "/hasNewPlaygroup").set("Sorry"); // Send apologies
+			}
 		});
 	});
 }
