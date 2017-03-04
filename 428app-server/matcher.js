@@ -812,7 +812,7 @@ function assignNewQuestion(completed) {
 function assignSuperlatives() {
 	var currentTimestamp = Date.now();
 	var oneWeek = DAYS_TO_ASSIGN_SUPERLATIVES * 24 * 60 * 60 * 1000;
-	var marginOfTime = 1 * 60 * 60 * 1000; // 1 hour of margin
+	var marginOfTime = 999999 * 60 * 60 * 1000; // 1 hour of margin
 	db.ref(dbName + "/playgroups")
 	.orderByChild("timeCreated") // If time created is about a week ago from current time
 	.startAt(currentTimestamp - oneWeek - marginOfTime)
