@@ -20,7 +20,7 @@ var db = admin.database();
 
 /**************************************************************************************/
 // INSERT COMMAND HERE. One command at a time, because each command will exit the process.
-newUsersNoPlaygroups();
+// newUsersNoPlaygroups();
 // oldUsersNoPlaygroups();
 // mostTalkativeUsersRecently();
 // inactiveUsers();

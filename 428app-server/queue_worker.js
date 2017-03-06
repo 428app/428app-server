@@ -103,7 +103,7 @@ function sendNotification(pushToken, type, posterUid, pid, posterImage, posterNa
 			notification : {
 					title: title,
 					body:  bodyText,
-					sound: 'default',
+					sound: 'sound.aif', // Filename of sound file in XCode project
 					badge: pushCount.toString()
 			}
 	};
