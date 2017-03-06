@@ -20,6 +20,8 @@ var db = admin.database();
 
 /**************************************************************************************/
 // INSERT COMMAND HERE. One command at a time, because each command will exit the process.
+// inspectUser("GAnS6ClGhANQ6W9D8eVp6yFqAIA3");
+// usersFromTimezone(-8);
 // newUsersNoPlaygroups();
 // oldUsersNoPlaygroups();
 // mostTalkativeUsersRecently();
@@ -30,6 +32,19 @@ var db = admin.database();
 function inspectUser(uid) {
 	db.ref(dbName + "/users/" + uid).once("value", function(snapshot) {
 		console.log(snapshot.val());
+		process.exit(0);
+	});
+}
+
+// Get users from input timezone (Double)
+function usersFromTimezone(timezone) {
+	db.ref(dbName + "/users").orderByChild("timezone").equalTo(timezone).once("value", function(snapshot) {
+		var affectedUsers = [];
+		snapshot.forEach(function(data) {
+			var user = data.val();
+			affectedUsers.push({"uid": data.key, "name": user["name"]});
+		});
+		console.log(affectedUsers);
 		process.exit(0);
 	});
 }

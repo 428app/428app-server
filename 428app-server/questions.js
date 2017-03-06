@@ -19,12 +19,18 @@ var dbName = "/test_db"
 var db = admin.database();
 
 // EXAMPLE: Write a question
-// writeQuestion("Economics", 
-// 	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Feconomics%2Fecon28.jpg?alt=media&token=a2f0abba-8bcb-4bd7-8080-22b314406b1b", 
-// 	"Do females get paid less than males if they were equally qualified and applying for the same job?", 
-// 	"https://www.youtube.com/embed/PsB1e-1BB4Y", 
+
+// writeQuestion("Fashion", 
+// 	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Ffashion%2Ffash2.jpg?alt=media&token=678984c4-1ac8-4832-9315-b7049a03c7b8", 
+// 	"Why do men's and women's shirts button from different sides?", 
+// 	"https://www.youtube.com/embed/oF_9_TjAaLk", 
 // 	true, "")
 
+// writeQuestion("Fashion", 
+// 	"https://firebasestorage.googleapis.com/v0/b/app-abdf9.appspot.com/o/real_db%2Fquestion_images%2Ffashion%2Ffash1.png?alt=media&token=26455aae-8ced-4694-a0a7-6f451f01d8b6", 
+// 	"What are some cool ways to tie your shoe laces?", 
+// 	"https://www.youtube.com/embed/-Szmv3WKPys", 
+// 	true, "")
 
 // 
 // EXAMPLE: Write a batch of Physics questions
@@ -33,7 +39,7 @@ var db = admin.database();
 // EXAMPLE: Write a did you know
 // writeDidYouKnow("Astronomy", "https://www.youtube.com/embed/HeGPn5zxegY")
 
-// assignAllQuestionsToAllUsers();
+assignAllQuestionsToAllUsers();
 // transferAllQuestionsFromTestToReal();
 
 function transferAllQuestionsFromTestToReal() {
@@ -289,3 +295,21 @@ function writeDidYouKnow(discipline, videoLink) {
 // writeDidYouKnow("Physics", "https://www.youtube.com/embed/7FfKaIgArJ8")
 // writeDidYouKnow("Physics", "https://www.youtube.com/embed/WIyTZDHuarQ")
 
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/Zxk5y2J971A")
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/s2LrmAThAhk")
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/bqTZTGauGhU")
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/lQA5_ZC8sRE")
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/2PaPNWVQcco")
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/Jh6QiH9ZVSk")
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/9MgDN2Rjk44")
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/COk_o_1JcVo")
+// writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/AA_dXDRkP9s")
+
+writeDidYouKnow("History", "https://www.youtube.com/embed/H9NDuxL4WA4")
+writeDidYouKnow("History", "https://www.youtube.com/embed/IoBM3XQCC2g")
+writeDidYouKnow("History", "https://www.youtube.com/embed/neb7dbPW0Sk")
+writeDidYouKnow("History", "https://www.youtube.com/embed/dHQZErtwA3E")
+writeDidYouKnow("History", "https://www.youtube.com/embed/Mh5LY4Mz15o")
+writeDidYouKnow("History", "https://www.youtube.com/embed/SJQuPCKslx8")
+writeDidYouKnow("History", "https://www.youtube.com/embed/3LsZDunGF0s")
+writeDidYouKnow("History", "https://www.youtube.com/embed/D-ceirO-nrc")

@@ -227,7 +227,7 @@ function _assignPlaygroup(playpeers, discipline) {
 	var timeCreated = _nextDay428(timezone); // No playgroup previously as playpeers are new users
 	if (timeOfNextPlaygroup != undefined) { 
 		// Next playgroup will be in 4-8 days after the next day 4:28pm for non-new users
-		timeCreated = _addDaysToTimestamp(timeCreated, 4);
+		timeCreated = _addDaysToTimestamp(timeCreated, 3);
 	}
 
 	var memberHasVoted = {};
@@ -314,9 +314,9 @@ function _addToAvailablePlaygroup(playpeer) {
 		timestampToStart = _nextDay428(timezone);
 		timestampToEnd = _nextDay428(timezone); // Can only assign playgroups that are due tomorrow
 	} else {
-		// Assign this user to a playgroup that is 4-8 days from her previous playgroup
-		timestampToStart = _addDaysToTimestamp(timestampToStart, 4);
-		timestampToEnd = _addDaysToTimestamp(timestampToEnd, 8);
+		// Assign this user to a playgroup that is 3-6 days from her previous playgroup
+		timestampToStart = _addDaysToTimestamp(timestampToStart, 3);
+		timestampToEnd = _addDaysToTimestamp(timestampToEnd, 6);
 	}
 	
 	// For each of these disciplines, look in playgroups that have not been assigned yet
