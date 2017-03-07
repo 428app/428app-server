@@ -20,6 +20,7 @@ var db = admin.database();
 
 /**************************************************************************************/
 // INSERT COMMAND HERE. One command at a time, because each command will exit the process.
+usersWithMoreThanOnePlaygroup();
 // inspectUser("GAnS6ClGhANQ6W9D8eVp6yFqAIA3");
 // usersFromTimezone(-8);
 // newUsersNoPlaygroups();
@@ -32,6 +33,24 @@ var db = admin.database();
 function inspectUser(uid) {
 	db.ref(dbName + "/users/" + uid).once("value", function(snapshot) {
 		console.log(snapshot.val());
+		process.exit(0);
+	});
+}
+
+function usersWithMoreThanOnePlaygroup() {
+	db.ref(dbName + "/users").once("value", function(snapshot) {
+		var affectedUsers = [];
+		snapshot.forEach(function(data) {
+			var uid = data.key;
+			var user = data.val();
+			if (user["playgroups"] != undefined) {
+				var playgroupCount = Object.keys(user["playgroups"]).length
+				if (playgroupCount > 0) {
+					affectedUsers.push(uid);
+				}
+			}
+		});
+		console.log(affectedUsers);
 		process.exit(0);
 	});
 }
