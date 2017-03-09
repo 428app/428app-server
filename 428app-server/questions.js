@@ -39,7 +39,7 @@ var db = admin.database();
 // EXAMPLE: Write a did you know
 // writeDidYouKnow("Astronomy", "https://www.youtube.com/embed/HeGPn5zxegY")
 
-assignAllQuestionsToAllUsers();
+// assignAllQuestionsToAllUsers();
 // transferAllQuestionsFromTestToReal();
 
 function transferAllQuestionsFromTestToReal() {
@@ -305,11 +305,11 @@ function writeDidYouKnow(discipline, videoLink) {
 // writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/COk_o_1JcVo")
 // writeDidYouKnow("Visual Arts", "https://www.youtube.com/embed/AA_dXDRkP9s")
 
-writeDidYouKnow("History", "https://www.youtube.com/embed/H9NDuxL4WA4")
-writeDidYouKnow("History", "https://www.youtube.com/embed/IoBM3XQCC2g")
-writeDidYouKnow("History", "https://www.youtube.com/embed/neb7dbPW0Sk")
-writeDidYouKnow("History", "https://www.youtube.com/embed/dHQZErtwA3E")
-writeDidYouKnow("History", "https://www.youtube.com/embed/Mh5LY4Mz15o")
-writeDidYouKnow("History", "https://www.youtube.com/embed/SJQuPCKslx8")
-writeDidYouKnow("History", "https://www.youtube.com/embed/3LsZDunGF0s")
-writeDidYouKnow("History", "https://www.youtube.com/embed/D-ceirO-nrc")
+// writeDidYouKnow("History", "https://www.youtube.com/embed/H9NDuxL4WA4")
+// writeDidYouKnow("History", "https://www.youtube.com/embed/IoBM3XQCC2g")
+// writeDidYouKnow("History", "https://www.youtube.com/embed/neb7dbPW0Sk")
+// writeDidYouKnow("History", "https://www.youtube.com/embed/dHQZErtwA3E")
+// writeDidYouKnow("History", "https://www.youtube.com/embed/Mh5LY4Mz15o")
+// writeDidYouKnow("History", "https://www.youtube.com/embed/SJQuPCKslx8")
+// writeDidYouKnow("History", "https://www.youtube.com/embed/3LsZDunGF0s")
+// writeDidYouKnow("History", "https://www.youtube.com/embed/D-ceirO-nrc")

@@ -15,13 +15,14 @@ var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "La
 var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Likely to be arrested", "Most dramatic", "Richest right now", "Party animal", "Most lovable", "Future billionaire", "Boyfriend material", "Prime minister to-be", "Trump's best friend", "Sex god", "FBI agent", "Actually a celebrity", "Kim K.'s next BF", "Cat lover", "Most hipster", "Worst driver", "Selfie King/Queen", "Most innocent", "Drunkard"];
 
 // NOTE: This will be /test_db when you're testing
-var dbName = "/real_db"
+var dbName = "/test_db"
 var db = admin.database();
 
 /**************************************************************************************/
 // INSERT COMMAND HERE. One command at a time, because each command will exit the process.
-usersWithMoreThanOnePlaygroup();
-// inspectUser("GAnS6ClGhANQ6W9D8eVp6yFqAIA3");
+// usersWithMoreThanOnePlaygroup();
+// numberOfActiveUsers();
+// inspectUser("ILzu2nUGdVZQ06MFhcAd3rmyvaM2");
 // usersFromTimezone(-8);
 // newUsersNoPlaygroups();
 // oldUsersNoPlaygroups();
@@ -30,9 +31,29 @@ usersWithMoreThanOnePlaygroup();
 // sendPushNotification("g9z6AtvlShMPGGkHGBPqo8yFclk2", "428 misses you :(", "It's been a while. Drop by 428 if you're free, and start being curious again.");
 /**************************************************************************************/
 
+// Tim, Jenny, Megan, Tomas, Kamron, Xindi
+// 4AWSzWm8qnM43aY2jhnrbUApVmR2: 31
+// nlqUciBNfzNPLocp8lzYR2BQVDo1: 25
+// V1DcEHnrFHPnimKym49SyDkoJU02: 25
+// vvQrB1Z7sIN3kMLZhR41QvjutaG2: 21
+// RN2H0hXze4ZPR3iXm9AD0QHIHH93: 21
+// uitHoap1o8ahcbpmQtMmuHICwsC2: 20
+// ILzu2nUGdVZQ06MFhcAd3rmyvaM2: 11
+
+
 function inspectUser(uid) {
 	db.ref(dbName + "/users/" + uid).once("value", function(snapshot) {
 		console.log(snapshot.val());
+		process.exit(0);
+	});
+}
+
+function numberOfActiveUsers() { // Active users are users that logged in in the past two weeks
+	var twoWeeksAgo = Date.now() - (2 * 7 * 24 * 60 * 60 * 1000);
+	db.ref(dbName + "/users")
+	.orderByChild("lastSeen")
+	.startAt(twoWeeksAgo).once("value", function(snapshot) {
+		console.log(snapshot.numChildren())
 		process.exit(0);
 	});
 }
@@ -164,6 +185,9 @@ function inactiveUsers() {
 	});
 }
 
+sendPushNotification("luiijotvxfeh5MzM4mRrLw5c2cj2", "", "It's 4:28pm! Discuss your new question with your peers.")
+
+
 // Used to send push notification to individual user, likely an inactive user
 // Note that the title prepends the input title with the user's name
 function sendPushNotification(uid, title, body) {
@@ -188,7 +212,7 @@ function sendPushNotification(uid, title, body) {
 			pushCount: pushCount,
 			inApp: false,
 			pid: "",
-			title: name + "," + " " + title,
+			title: title,//name + "," + " " + title,
 			body: body
 		}).then(function() {
 			process.exit(0);

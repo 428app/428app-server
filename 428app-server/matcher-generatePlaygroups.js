@@ -710,6 +710,7 @@ function transferToNewPlaygroup() {
  * FOR TESTING: Comment out the part about checking if it is time to give new question
  */
 function assignNewQuestion(completed) {
+
 	var serverTimezone = (-new Date().getTimezoneOffset()) / 60.0;
 	var serverMinute = new Date().getMinutes();
 	var currentTimestamp = Date.now()
@@ -780,10 +781,7 @@ function assignNewQuestion(completed) {
 								playgroupUpdates["hasUpdates"] = true;
 								playgroupUpdates["timeReplied"] = currentTimestamp;
 
-								db.ref(dbName + "/users/" + playpeerUid + "/playgroups/" + pid).update(playgroupUpdates).then(function() {
-									// Send push notification to this user if needed
-									_sendPushNotification(questionImage, playpeerUid, "NEW " + discipline.toUpperCase() + " QUESTION", "You know you want to open this.", additionalPushCount);
-								});
+								db.ref(dbName + "/users/" + playpeerUid + "/playgroups/" + pid).update(playgroupUpdates);
 							})
 						});
 					});
@@ -794,7 +792,30 @@ function assignNewQuestion(completed) {
 				// End of one playgroup, move on to next playgroup to assign new question
 			});
 		});
-	})
+	});
+
+	// Send push notification to all active users to check their phone for new question at 4:28pm
+	var twoWeeksAgo = Date.now() - (2 * 7 * 24 * 60 * 60 * 1000);
+	db.ref(dbName + "/users")
+	.orderByChild("lastSeen")
+	.startAt(twoWeeksAgo).once("value", function(snapshot) {
+		snapshot.forEach(function(data) {
+			var uid = data.key;
+			var user = data.val();
+
+			// If timezone is right, then send
+			var userTimezone = user["timezone"];
+			var hoursToAdd = userTimezone - serverTimezone; // Assume whole sum
+			var serverHour = new Date().getHours();
+			var userHour = (serverHour + hoursToAdd) % 24;
+			if (!(userHour == 16 && serverMinute == 28) && !(userHour == 15.5 && serverMinute == 58)) {
+				// Not time to send a new question yet, skip user
+				return;
+			}
+			var appLogo = "https://storage.googleapis.com/app-abdf9.appspot.com/428-app-icon-bold.png";
+			_sendPushNotification(appLogo, uid, "", "It's 4:28pm! Discuss your new question with your peers.", 0);	
+		});	
+	});
 }
 
 /**
