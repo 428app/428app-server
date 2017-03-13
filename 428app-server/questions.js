@@ -15,7 +15,7 @@ var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "La
 var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ: 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Likely to be arrested", "Most dramatic", "Richest right now", "Party animal", "Most lovable", "Future billionaire", "Boyfriend material", "Prime minister to-be", "Trump's best friend", "Sex god", "FBI agent", "Actually a celebrity", "Kim K.'s next BF", "Cat lover", "Most hipster", "Worst driver", "Selfie King/Queen", "Most innocent", "Drunkard"];
 
 // NOTE: This will be /test_db when you're testing
-var dbName = "/test_db"
+var dbName = "/test_db";
 var db = admin.database();
 
 // EXAMPLE: Write a question
@@ -44,8 +44,8 @@ var db = admin.database();
 
 function transferAllQuestionsFromTestToReal() {
 	// NOTE: This DOES NOT transfer over qid linkages. Only run this when there are no playgroups!
-	db.ref("test_db/questions/Computer Science").once("value", function(snapshot) {
-		db.ref("real_db/questions/Computer Science").set(snapshot.val());
+	db.ref("test_db/questions/Geography").once("value", function(snapshot) {
+		db.ref("real_db/questions/Geography").set(snapshot.val());
 	})
 }
 

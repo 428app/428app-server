@@ -17,8 +17,8 @@ var db = admin.database();
 
 // These disciplines are not currently being used, but is the full list of disciplines that could occur
 var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Education", "Fashion"];
-var SUPERLATIVES = ["Most awkward", "Most similar to Bieber", "IQ 200", "Best personality", "Most good looking", "Most funny", "Biggest dreamer", "Most flirt", "Loudest", "Most quiet", "Most artistic", "Likely to be arrested", "Most dramatic", "Richest right now", "Party animal", "Most lovable", "Future billionaire", "Boyfriend material", "Prime minister to-be", "Best friend of Trump", "Sex god", "FBI agent", "Actually a celebrity", "Next BF of Kim K", "Cat lover", "Most hipster", "Worst driver", "Selfie Queen", "Most innocent", "Drunkard"];
-var DAYS_TO_ASSIGN_SUPERLATIVES = 2
+var SUPERLATIVES = ["Most friendly", "Most funny", "Most intelligent"];
+var DAYS_TO_ASSIGN_SUPERLATIVES = 3
 
 /********************************************************************************************/
 // MAKE THE CALL HERE
@@ -666,7 +666,7 @@ function transferToNewPlaygroup() {
 					updates["/playgroups/" + pid + "/questions/" + qid + "/" + uid] = 0
 
 					db.ref(dbName).update(updates).then(function() {
-						_sendPushNotification("", uid, "NEW PLAY GROUP", "It's time to bring back memories of " + discipline + "!", 1);
+						_sendPushNotification("", uid, "NEW GROUP", "It's time to discover " + discipline + "!", 1);
 					});
 				});
 			});
@@ -842,9 +842,11 @@ function assignSuperlatives() {
 				return;
 			}
 			var pid = data.key;
-			var NUM_SUPERLATIVES = 4;
-			var SHUFFLED_SUPERLATIVES = _shuffleArray(SUPERLATIVES);
-			var chosenSuperlatives = SHUFFLED_SUPERLATIVES.slice(0, NUM_SUPERLATIVES);
+
+			// var NUM_SUPERLATIVES = 4;
+			// var SHUFFLED_SUPERLATIVES = _shuffleArray(SUPERLATIVES);
+			// var chosenSuperlatives = SHUFFLED_SUPERLATIVES.slice(0, NUM_SUPERLATIVES);
+			var chosenSuperlatives = SUPERLATIVES;
 
 			// Grab list of uids
 			var uidsAndVotedUids = playgroup["memberHasVoted"];

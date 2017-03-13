@@ -18,7 +18,8 @@ console.log("Push server running...");
 var db = admin.database();
 
 // NOTE: This will be /test_db when you're testing
-var dbName = "/test_db";
+// var dbName = "/test_db";
+var dbName = "/real_db";
 
 var ref = db.ref(dbName + "/queue");
 var Queue = require('firebase-queue');
