@@ -21,13 +21,15 @@ admin.initializeApp({
 console.log("matcher.js is running...");
 
 // NOTE: This will be /test_db when you're testing
-var dbName = "/test_db"
+var dbName = "/real_db"
 var db = admin.database();
 
 // These disciplines are not currently being used, but is the full list of disciplines that could occur
 var DISCIPLINES = ["Performing Arts", "Visual Arts", "Geography", "History", "Languages", "Literature", "Philosophy", "Economics", "Law", "Political Sciences", "Sports", "Theology", "Biology", "Chemistry", "Astronomy", "Mathematics", "Physics", "Finance", "Agriculture", "Computer Science", "Engineering", "Health", "Psychology", "Culture", "Education", "Fashion"];
 var SUPERLATIVES = ["Most friendly", "Most funny", "Most intelligent"];
 var DAYS_TO_ASSIGN_SUPERLATIVES = 3
+
+generatePlaygroups();
 
 /**
  * Checks if a user has already been in a playgroup of a certain discipline.
@@ -304,11 +306,15 @@ function _addToAvailablePlaygroup(playpeer) {
 	}
 
 	var timezone = playpeer["timezone"];
+	if (timezone == undefined) {
+		return;
+	}
 
 	var timestampToStart = playpeer["timeOfNextPlaygroup"];
 	var timestampToEnd = playpeer["timeOfNextPlaygroup"];
 	// If playpeer has no timeOfNextPlaygroup, this is a new user!
-	var isNewUser = timestampToStart == null;
+	var isNewUser = timestampToStart == undefined;
+
 	if (isNewUser) {
 		// For new users, need to assign playgroups of the next day 428, OR just don't assign if cannot find
 		timestampToStart = _nextDay428(timezone);
@@ -443,6 +449,7 @@ function generatePlaygroups() {
 
 				// If user hasn't been online for 2 weeks (inactive), do not match user to playgroup
 				if (user["lastSeen"] == undefined || user["lastSeen"] < (Date.now() - (2 * 7 * 24 * 60 * 60 * 1000))) {
+					console.log(uid);
 					return;
 				}
 

@@ -22,14 +22,15 @@ var db = admin.database();
 // INSERT COMMAND HERE. One command at a time, because each command will exit the process.
 // usersWithMoreThanOnePlaygroup();
 // numberOfActiveUsers();
-// inspectUser("lrrnin5flqXl2R3jhxKodZkMDYM2");
-// usersFromTimezone(-8);
-// newUsersNoPlaygroups();
+// inspectUser("Iouo0fVW7idBISHUF8uMtG06es82");
+// usersFromTimezone(8);
+// newUsersNoPlaygroups(-9999);
 // aggregateQuestionLikes();
 // oldUsersNoPlaygroups();
 // mostTalkativeUsersRecently();
 // inactiveUsers();
 // timezoneShift();
+// usersSignedUpToday();
 
 // sendPushNotification("g9z6AtvlShMPGGkHGBPqo8yFclk2", "428 misses you :(", "It's been a while. Drop by 428 if you're free, and start being curious again.");
 // startInboxWithMessage("Rhv5cgtjYHY1Nakrp7hEHcUVXNW2", "Hey! Leonard, the co-founder of 428 here. Thanks for downloading 428. :) I was just wondering, how did you manage to hear of 428? I realized you're in the GMT+7 timezone.")
@@ -46,23 +47,37 @@ var db = admin.database();
 // uitHoap1o8ahcbpmQtMmuHICwsC2: 20
 // ILzu2nUGdVZQ06MFhcAd3rmyvaM2: 11
 
+// function timezoneShift() {
+// 	db.ref(dbName + "/users")
+// 	.orderByChild("timezone")
+// 	.equalTo(-5).once("value", function(snapshot) {
+// 		snapshot.forEach(function(data) {
+// 			var uid = data.key;
+// 			db.ref(dbName + "/users/" + uid + "/timezone").set(-4);
+// 		});
+// 	});
+// 	db.ref(dbName + "/playgroups")
+// 	.orderByChild("timezone")
+// 	.equalTo(-5).once("value", function(snapshot) {
+// 		snapshot.forEach(function(data) {
+// 			var pid = data.key;
+// 			db.ref(dbName + "/playgroups/" + pid + "/timezone").set(-4);
+// 		});
+// 	});
+// }
 
-function timezoneShift() {
-	db.ref(dbName + "/users")
-	.orderByChild("timezone")
-	.equalTo(-5).once("value", function(snapshot) {
+function usersSignedUpToday() {
+	var now = Date.now();
+	var today = now - (24 * 60 * 60 * 1000);
+	db.ref(dbName + "/users").orderByChild("timeCreated").startAt(today).once("value", function(snapshot) {
+		var affectedUsers = [];
 		snapshot.forEach(function(data) {
 			var uid = data.key;
-			db.ref(dbName + "/users/" + uid + "/timezone").set(-4);
+			var user = data.val();
+			affectedUsers.push({"uid": uid, "timezone": user["timezone"], "name": user["name"]});
 		});
-	});
-	db.ref(dbName + "/playgroups")
-	.orderByChild("timezone")
-	.equalTo(-5).once("value", function(snapshot) {
-		snapshot.forEach(function(data) {
-			var pid = data.key;
-			db.ref(dbName + "/playgroups/" + pid + "/timezone").set(-4);
-		});
+		console.log(affectedUsers);
+		process.exit(0);
 	});
 }
 
@@ -164,7 +179,7 @@ function usersFromTimezone(timezone) {
 }
 
 // Get users that do not have playgroups AND do not have a next playgroup (new users)
-function newUsersNoPlaygroups() {
+function newUsersNoPlaygroups(inputTimezone) {
 	var now = Date.now();
 	db.ref(dbName + "/users").once("value", function(snapshot) {
 		var affectedUsers = [];
@@ -177,6 +192,11 @@ function newUsersNoPlaygroups() {
 					joinedDaysAgo = (now - user["timeCreated"])*1.0 / (1000 * 60 * 60 * 24);
 				}
 				var timezone = -999
+				if (inputTimezone > -999) {
+					if (user["timezone"] != undefined && user["timezone"] != inputTimezone) {
+						return;
+					}
+				}
 				if (user["timezone"] != undefined) {
 					timezone = user["timezone"];
 				}

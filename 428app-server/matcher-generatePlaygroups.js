@@ -300,11 +300,14 @@ function _addToAvailablePlaygroup(playpeer) {
 	}
 
 	var timezone = playpeer["timezone"];
+	if (timezone == undefined) {
+		return;
+	}
 
 	var timestampToStart = playpeer["timeOfNextPlaygroup"];
 	var timestampToEnd = playpeer["timeOfNextPlaygroup"];
 	// If playpeer has no timeOfNextPlaygroup, this is a new user!
-	var isNewUser = timestampToStart == null;
+	var isNewUser = timestampToStart == undefined;
 	if (isNewUser) {
 		// For new users, need to assign playgroups of the next day 428, OR just don't assign if cannot find
 		timestampToStart = _nextDay428(timezone);
